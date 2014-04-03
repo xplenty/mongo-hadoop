@@ -218,9 +218,9 @@ public class BSONLoader extends LoadFunc implements LoadMetadata {
             BasicBSONList bl = (BasicBSONList) o;
             DataBag bag = bagFactory.newDefaultBag();
 
-            for (int i = 0; i < bl.size(); i++) {
+            for (Object aBl : bl) {
                 Tuple t = tupleFactory.newTuple(1);
-                t.set(0, convertBSONtoPigType(bl.get(i)));
+                t.set(0, convertBSONtoPigType(aBl));
                 bag.add(t);
             }
 

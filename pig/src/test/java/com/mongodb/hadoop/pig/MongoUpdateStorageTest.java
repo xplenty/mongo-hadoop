@@ -1,23 +1,20 @@
 package com.mongodb.hadoop.pig;
 
-import static org.junit.Assert.assertEquals;
-
-import java.util.Date;
-
-import org.apache.pig.ExecType;
-import org.apache.pig.PigServer;
-import org.apache.pig.test.Util;
-import org.junit.AfterClass;
-import org.junit.Test;
-
 import com.mongodb.BasicDBObject;
 import com.mongodb.DBCollection;
 import com.mongodb.DBCursor;
 import com.mongodb.DBObject;
 import com.mongodb.MongoClient;
+import org.apache.pig.ExecType;
+import org.apache.pig.PigServer;
+import org.junit.AfterClass;
+import org.junit.Test;
+
+import java.util.Date;
+
+import static org.junit.Assert.assertEquals;
 
 public class MongoUpdateStorageTest {
-    private static PigServer pigServerLocal = null;
     private static String dbName = "MongoUpdateStorageTest-" + new Date().getTime();
 
     @AfterClass
@@ -40,15 +37,16 @@ public class MongoUpdateStorageTest {
             "b\tnewValue2\t2"
         };
         Util.createLocalInputFile("simple_input", input);
-        
-        pigServerLocal = new PigServer(ExecType.LOCAL);
+
+        final PigServer pigServerLocal = new PigServer(ExecType.LOCAL);
         pigServerLocal.registerQuery("A = LOAD 'simple_input' as (f1:chararray, f2:chararray, f3:int);");
         pigServerLocal.registerQuery(String.format(
-                "STORE A INTO 'mongodb://localhost:27017/%s.%s' USING com.mongodb.hadoop.pig.MongoUpdateStorage("
-              + "  '{f1:\"\\\\$f1\"}',"
-              + "  '{\\\\$set:{f2:\"\\\\$f2\", f3:\"\\\\$f3\"}}',"
-              + "  'f1:chararray, f2:chararray, f3:int'"
-              + ");", dbName, "update_simple"));
+                                                      "STORE A INTO 'mongodb://localhost:27017/%s.%s' USING com.mongodb.hadoop.pig"
+                                                      + ".MongoUpdateStorage(  '{f1:\"\\\\$f1\"}',"
+                                                      + "  '{\\\\$set:{f2:\"\\\\$f2\", f3:\"\\\\$f3\"}}',"
+                                                      + "  'f1:chararray, f2:chararray, f3:int'"
+                                                      + ");", dbName, "update_simple"
+                                                  ));
         pigServerLocal.setBatchOn();
         pigServerLocal.executeBatch();
         
@@ -68,7 +66,7 @@ public class MongoUpdateStorageTest {
         assertEquals(2, result2.get("f3"));
     }
     
-    private void insertData(String collectionName, BasicDBObject... objs) throws Exception {
+    private void insertData(final String collectionName, final BasicDBObject... objs) throws Exception {
         MongoClient mc = new MongoClient();
         DBCollection col = mc.getDB(dbName).getCollection(collectionName);
         col.insert(objs);
