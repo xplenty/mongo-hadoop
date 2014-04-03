@@ -42,7 +42,7 @@ public class MongoOutputFormat<K, V> implements OutputFormat<K, V> {
         this(null, false);
     }
     
-    public MongoOutputFormat(String[] updateKeys, boolean multiUpdate) {
+    public MongoOutputFormat(final String[] updateKeys, final boolean multiUpdate) {
         this.updateKeys = updateKeys;
         this.multiUpdate = multiUpdate;
     }

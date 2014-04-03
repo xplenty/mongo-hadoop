@@ -1,10 +1,6 @@
 package com.mongodb.hadoop.pig;
 
-import java.io.IOException;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
-
+import com.mongodb.hadoop.BSONFileInputFormat;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.mapreduce.InputFormat;
@@ -31,7 +27,10 @@ import org.bson.BasicBSONObject;
 import org.bson.types.BasicBSONList;
 import org.bson.types.ObjectId;
 
-import com.mongodb.hadoop.BSONFileInputFormat;
+import java.io.IOException;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 
 public class BSONLoader extends LoadFunc implements LoadMetadata {
 
@@ -119,7 +118,7 @@ public class BSONLoader extends LoadFunc implements LoadMetadata {
                 //If we don't know the type we're using, try to convert it directly.
                 return convertBSONtoPigType(obj);
             }
-            
+
             switch (field.getType()) {
                 case DataType.INTEGER:
                     return Integer.parseInt(obj.toString());
@@ -159,9 +158,9 @@ public class BSONLoader extends LoadFunc implements LoadMetadata {
 
                     if (s == null) {
                         //Handle lack of schema - We'll create a separate tuple for each item in this bag.
-                        for(int j = 0; j < vals.size(); j++) {
+                        for (Object val1 : vals) {
                             t = tupleFactory.newTuple(1);
-                            t.set(0, readField(vals.get(j), null));
+                            t.set(0, readField(val1, null));
                             bag.add(t);
                         }
                     } else {
@@ -169,7 +168,7 @@ public class BSONLoader extends LoadFunc implements LoadMetadata {
                         for (Object val1 : vals) {
                             t = tupleFactory.newTuple(fs.length);
 
-                            for(int k = 0; k < fs.length; k++) {
+                            for (int k = 0; k < fs.length; k++) {
                                 String fieldName = fs[k].getName();
                                 t.set(k, readField(((BasicBSONObject) val1).get(fieldName), fs[k]));
                             }
@@ -195,7 +194,7 @@ public class BSONLoader extends LoadFunc implements LoadMetadata {
                     return outputMap;
 
                 default:
-                    LOG.info("asfkjabskfjbsaf default for " + field.getName());
+                    LOG.info("default for " + field.getName());
                     return BSONLoader.convertBSONtoPigType(obj);
             }
         } catch (Exception e) {
@@ -218,8 +217,8 @@ public class BSONLoader extends LoadFunc implements LoadMetadata {
         } else if (o instanceof BasicBSONList) {
             BasicBSONList bl = (BasicBSONList) o;
             DataBag bag = bagFactory.newDefaultBag();
-            
-            for(int i = 0; i < bl.size(); i++) {
+
+            for (int i = 0; i < bl.size(); i++) {
                 Tuple t = tupleFactory.newTuple(1);
                 t.set(0, convertBSONtoPigType(bl.get(i)));
                 bag.add(t);
@@ -241,8 +240,8 @@ public class BSONLoader extends LoadFunc implements LoadMetadata {
     }
 
     @Override
-    public ResourceSchema getSchema(String location, Job job)
-            throws IOException {
+    public ResourceSchema getSchema(final String location, final Job job)
+        throws IOException {
         if (schema != null) {
             return schema;
         } else {
@@ -257,8 +256,8 @@ public class BSONLoader extends LoadFunc implements LoadMetadata {
     }
 
     @Override
-    public ResourceStatistics getStatistics(String location, Job job)
-            throws IOException {
+    public ResourceStatistics getStatistics(final String location, final Job job)
+        throws IOException {
         // No statistics available. In the future
         // we could maybe construct something from db.collection.stats() here
         // but the class/API for this is unstable anyway, so this is unlikely
@@ -267,14 +266,14 @@ public class BSONLoader extends LoadFunc implements LoadMetadata {
     }
 
     @Override
-    public String[] getPartitionKeys(String location, Job job)
-            throws IOException {
+    public String[] getPartitionKeys(final String location, final Job job)
+        throws IOException {
         // No partition keys. 
         return null;
     }
 
     @Override
-    public void setPartitionFilter(Expression partitionFilter)
-            throws IOException {
+    public void setPartitionFilter(final Expression partitionFilter)
+        throws IOException {
     }
 }

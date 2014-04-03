@@ -1,6 +1,9 @@
 package com.mongodb.hadoop.splitter;
 
-import static org.junit.Assert.assertEquals;
+import com.mongodb.MongoURI;
+import com.mongodb.hadoop.input.MongoInputSplit;
+import org.apache.hadoop.mapreduce.InputSplit;
+import org.junit.Test;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -8,30 +11,27 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.hadoop.mapreduce.InputSplit;
-import org.junit.Test;
-
-import com.mongodb.MongoURI;
+import static org.junit.Assert.assertEquals;
 
 @SuppressWarnings("deprecation")
 public class ShardChunkMongoSplitterTest {
     @Test
-    public void testCreateSplitList_oneShard() {
+    public void testCreateSplitListOneShard() {
         int numChunks = 2;
         InputSplit split1 = new TestMongoInputSplit(new MongoURI("mongodb://split1"));
         InputSplit split2 = new TestMongoInputSplit(new MongoURI("mongodb://split2"));
         LinkedList<InputSplit> shardSplits = new LinkedList<InputSplit>(Arrays.asList(split1, split2));
-        
-        Map<String,LinkedList<InputSplit>> shardToSplits = new HashMap<String, LinkedList<InputSplit>>();
+
+        Map<String, LinkedList<InputSplit>> shardToSplits = new HashMap<String, LinkedList<InputSplit>>();
         shardToSplits.put("shard1", shardSplits);
-        
+
         List<InputSplit> splits = ShardChunkMongoSplitter.createSplitList(numChunks, shardToSplits);
         assertEquals(split1, splits.get(0));
         assertEquals(split2, splits.get(1));
     }
-    
+
     @Test
-    public void testCreateSplitList_twoEvenShards() {
+    public void testCreateSplitListTwoEvenShards() {
         int numChunks = 4;
         InputSplit split1 = new TestMongoInputSplit(new MongoURI("mongodb://split1"));
         InputSplit split2 = new TestMongoInputSplit(new MongoURI("mongodb://split2"));
@@ -39,20 +39,20 @@ public class ShardChunkMongoSplitterTest {
         InputSplit split4 = new TestMongoInputSplit(new MongoURI("mongodb://split4"));
         LinkedList<InputSplit> shardSplits1 = new LinkedList<InputSplit>(Arrays.asList(split1, split2));
         LinkedList<InputSplit> shardSplits2 = new LinkedList<InputSplit>(Arrays.asList(split3, split4));
-        
-        Map<String,LinkedList<InputSplit>> shardToSplits = new HashMap<String, LinkedList<InputSplit>>();
+
+        Map<String, LinkedList<InputSplit>> shardToSplits = new HashMap<String, LinkedList<InputSplit>>();
         shardToSplits.put("shard1", shardSplits1);
         shardToSplits.put("shard2", shardSplits2);
-        
+
         List<InputSplit> splits = ShardChunkMongoSplitter.createSplitList(numChunks, shardToSplits);
         assertEquals(split1, splits.get(0));
         assertEquals(split3, splits.get(1));
         assertEquals(split2, splits.get(2));
         assertEquals(split4, splits.get(3));
     }
-    
+
     @Test
-    public void testCreateSplitList_twoUnevenShards() {
+    public void testCreateSplitListTwoUnevenShards() {
         int numChunks = 6;
         InputSplit split1 = new TestMongoInputSplit(new MongoURI("mongodb://split1"));
         InputSplit split2 = new TestMongoInputSplit(new MongoURI("mongodb://split2"));
@@ -62,11 +62,11 @@ public class ShardChunkMongoSplitterTest {
         InputSplit split6 = new TestMongoInputSplit(new MongoURI("mongodb://split6"));
         LinkedList<InputSplit> shardSplits1 = new LinkedList<InputSplit>(Arrays.asList(split1, split2));
         LinkedList<InputSplit> shardSplits2 = new LinkedList<InputSplit>(Arrays.asList(split3, split4, split5, split6));
-        
-        Map<String,LinkedList<InputSplit>> shardToSplits = new HashMap<String, LinkedList<InputSplit>>();
+
+        Map<String, LinkedList<InputSplit>> shardToSplits = new HashMap<String, LinkedList<InputSplit>>();
         shardToSplits.put("shard1", shardSplits1);
         shardToSplits.put("shard2", shardSplits2);
-        
+
         List<InputSplit> splits = ShardChunkMongoSplitter.createSplitList(numChunks, shardToSplits);
         assertEquals(split1, splits.get(0));
         assertEquals(split3, splits.get(1));
@@ -74,5 +74,11 @@ public class ShardChunkMongoSplitterTest {
         assertEquals(split4, splits.get(3));
         assertEquals(split5, splits.get(4));
         assertEquals(split6, splits.get(5));
+    }
+
+    private static class TestMongoInputSplit extends MongoInputSplit {
+        public TestMongoInputSplit(final MongoURI inputURI) {
+            setInputURI(inputURI);
+        }
     }
 }

@@ -48,7 +48,7 @@ public class MongoRecordWriter<K, V> implements RecordWriter<K, V> {
     }
 
 
-    public MongoRecordWriter(final List<DBCollection> c, final JobConf conf, String[] updateKeys, boolean multiUpdate) {
+    public MongoRecordWriter(final List<DBCollection> c, final JobConf conf, final String[] updateKeys, final boolean multiUpdate) {
         collections = c;
         configuration = conf;
         numberOfHosts = c.size();

@@ -122,14 +122,14 @@ public abstract class MongoCollectionSplitter extends MongoSplitter {
 
     protected void init() {
         MongoURI inputURI = MongoConfigUtil.getInputURI(conf);
-        
+
         DB db;
         try {
             this.inputCollection = MongoConfigUtil.getCollection(inputURI);
             db = this.inputCollection.getDB();
         } catch (Exception e) {
-            String message = e.getMessage() + "\n\nMongo connection strings are required to be of the form:\n" +
-                    " mongodb://[username:password@]host1[:port1][,host2[:port2],...[,hostN[:portN]]]/database.collection";
+            String message = e.getMessage() + "\n\nMongo connection strings are required to be of the form:\n"
+                             + " mongodb://[username:password@]host1[:port1][,host2[:port2],...[,hostN[:portN]]]/database.collection";
             throw new IllegalStateException(message, e);
         }
 

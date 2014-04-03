@@ -1,7 +1,8 @@
 package com.mongodb.hadoop.pig;
 
-import java.io.IOException;
-
+import com.mongodb.hadoop.MongoInputFormat;
+import com.mongodb.hadoop.util.MongoConfigUtil;
+import com.mongodb.util.JSON;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.GnuParser;
@@ -27,9 +28,7 @@ import org.apache.pig.impl.util.Utils;
 import org.apache.pig.parser.ParserException;
 import org.bson.BSONObject;
 
-import com.mongodb.hadoop.MongoInputFormat;
-import com.mongodb.hadoop.util.MongoConfigUtil;
-import com.mongodb.util.JSON;
+import java.io.IOException;
 
 public class MongoLoader extends LoadFunc implements LoadMetadata {
     private static final Log LOG = LogFactory.getLog(MongoStorage.class);
@@ -43,9 +42,9 @@ public class MongoLoader extends LoadFunc implements LoadMetadata {
     private ResourceFieldSchema[] fields;
     private String idAlias = null;
 
-    private final static CommandLineParser parser = new GnuParser();
+    private static final CommandLineParser PARSER = new GnuParser();
     private final Options validOptions = new Options();
-    boolean loadAsChararray = false;
+    private boolean loadAsChararray = false;
 
     @Override
     public void setUDFContextSignature(final String signature) {
@@ -58,7 +57,6 @@ public class MongoLoader extends LoadFunc implements LoadMetadata {
     }
 
 
-    
     public MongoLoader(final String userSchema) {
         this(userSchema, null);
     }
@@ -71,25 +69,25 @@ public class MongoLoader extends LoadFunc implements LoadMetadata {
         String[] optsArr = options.split(" ");
         populateValidOptions();
         try {
-            CommandLine configuredOptions = parser.parse(validOptions, optsArr);
+            CommandLine configuredOptions = PARSER.parse(validOptions, optsArr);
             loadAsChararray = configuredOptions.hasOption("loadaschararray");
             initializeSchema(userSchema, idAlias);
         } catch (ParseException e) {
             throw new IllegalArgumentException("Invalid Options " + e.getMessage(), e);
         }
     }
-    
+
     private void initializeSchema(final String userSchema, final String idAlias) {
         this.idAlias = idAlias;
         try {
             //Remove new lines from schema string.
-            schema = new ResourceSchema(Utils.getSchemaFromString(userSchema.replaceAll("\\s|\\\\n","")));
+            schema = new ResourceSchema(Utils.getSchemaFromString(userSchema.replaceAll("\\s|\\\\n", "")));
             fields = schema.getFields();
         } catch (Exception e) {
             throw new IllegalArgumentException("Invalid Schema Format", e);
         }
     }
-    
+
     private void populateValidOptions() {
         validOptions.addOption("loadaschararray", false, "Loads the entire record as a chararray");
     }
@@ -97,7 +95,7 @@ public class MongoLoader extends LoadFunc implements LoadMetadata {
     public ResourceFieldSchema[] getFields() {
         return this.fields;
     }
-    
+
     @Override
     public void setLocation(final String location, final Job job) throws IOException {
         MongoConfigUtil.setInputURI(job.getConfiguration(), location);
@@ -132,7 +130,8 @@ public class MongoLoader extends LoadFunc implements LoadMetadata {
         Tuple t;
         if (loadAsChararray) {
             if (fields != null && (fields.length != 1 || fields[0].getType() != DataType.CHARARRAY)) {
-                throw new IllegalArgumentException("Invalid schema.  If -loadaschararray option is used, schema must be one chararray field.") ;
+                throw new IllegalArgumentException("Invalid schema.  If -loadaschararray option is used, "
+                                                   + "schema must be one chararray field.");
             }
             t = tupleFactory.newTuple(1);
             t.set(0, JSON.serialize(val));
