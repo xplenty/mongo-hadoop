@@ -273,10 +273,10 @@ project(":testing") {
     }
 }
 
-task installHadoop() {
+task installHadoop() << {
     new File(hadoopHome).getParentFile().mkdirs()
 
-    if (!new File("${hadoopHome}").exists()) {
+    if (!new File("${hadoopHome}/bin").exists()) {
         def url
         switch (hadoop_version) {
             case ("cdh4"):
@@ -372,6 +372,7 @@ def copyJars() {
         hadoopLib = "${hadoopHome}/share/hadoop/common"
     }
 
+    println "Copying core jars"
     copy {
         from "core/build/libs/mongo-hadoop-core-${project(':core').version}-hadoop_${hadoop_version}.jar"
         into hadoopLib
