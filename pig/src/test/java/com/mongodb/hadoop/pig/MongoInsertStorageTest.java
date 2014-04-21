@@ -33,8 +33,9 @@ public class MongoInsertStorageTest {
 
         pigServerLocal = new PigServer(ExecType.LOCAL);
         pigServerLocal.registerQuery("A = LOAD 'simple_input' as (f1:chararray, f2:int);");
-        pigServerLocal.registerQuery(format("STORE A INTO 'mongodb://localhost:27017/%s.%s' USING com.mongodb.hadoop.pig"
-                                            + ".MongoInsertStorage();", dbName, "insert_simple"));
+        String insert_simple = format("STORE A INTO 'mongodb://localhost:27017/%s.%s' USING %s();", dbName, "pig",
+                                              MongoInsertStorage.class.getName());
+        pigServerLocal.registerQuery(insert_simple);
         pigServerLocal.setBatchOn();
         pigServerLocal.executeBatch();
 

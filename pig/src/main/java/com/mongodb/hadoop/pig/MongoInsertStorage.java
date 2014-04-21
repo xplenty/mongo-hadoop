@@ -56,6 +56,7 @@ public class MongoInsertStorage extends StoreFunc implements StoreMetadata {
     private final MongoOutputFormat outputFormat = new MongoOutputFormat();
 
     public MongoInsertStorage() {
+        System.out.println("MongoInsertStorage.MongoInsertStorage");
     }
     
     public MongoInsertStorage(final String idField) {
@@ -70,8 +71,7 @@ public class MongoInsertStorage extends StoreFunc implements StoreMetadata {
         this.idField = idField;
     }
 
-    protected void writeField(final BasicDBObjectBuilder builder,
-                              final ResourceSchema.ResourceFieldSchema field,
+    protected void writeField(final BasicDBObjectBuilder builder, final ResourceSchema.ResourceFieldSchema field,
                               final Object d) throws IOException {
         Object convertedType = BSONStorage.getTypeForBSON(d, field, null);
         if (field.getName() != null && field.getName().equals(this.idField)) {
@@ -93,11 +93,13 @@ public class MongoInsertStorage extends StoreFunc implements StoreMetadata {
 
     @Override
     public void storeSchema(final ResourceSchema schema, final String location, final Job job) {
+        System.out.println("schema = [" + schema + "], location = [" + location + "], job = [" + job + "]");
         // not implemented
     }
 
     @Override
     public void storeStatistics(final ResourceStatistics stats, final String location, final Job job) {
+        System.out.println("stats = [" + stats + "], location = [" + location + "], job = [" + job + "]");
         // not implemented
     }
 
