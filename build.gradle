@@ -1,7 +1,5 @@
 import org.apache.tools.ant.filters.ReplaceTokens
 
-import static java.lang.String.format
-
 apply plugin: 'java'
 apply plugin: 'idea'
 apply plugin: 'download-task'
@@ -90,15 +88,8 @@ configure(subprojects) {
     configurations {
         tests
         tests.extendsFrom(testCompile)
-        
-        provided
-        provided.extendsFrom(compile)
     }
     
-    sourceSets.main.compileClasspath += configurations.provided
-    sourceSets.test.compileClasspath += configurations.provided
-    sourceSets.test.runtimeClasspath += configurations.provided
-
     dependencies {
         compile "org.mongodb:mongo-java-driver:${javaDriverVersion}"
 
@@ -288,6 +279,23 @@ project(":flume") {
             exclude group: 'org.apache.hadoop', module: 'hadoop-core'
             exclude group: 'com.cloudera.cdh', module: 'hadoop-ant'
         }
+    }
+}
+
+project(":sqoop") {
+    dependencies {
+        compile project(":core")
+        
+        compile 'org.apache.sqoop:sqoop-core:1.99.3'
+        compile 'org.apache.sqoop:connector:1.99.3'
+        testCompile project(path: ':core', configuration: 'tests')
+    }
+    
+    def file = new File("sqoop/src/main/java/com/mongodb/sqoop/package-info.java")
+    file.withWriter {
+        it << "@org.apache.sqoop.common.VersionAnnotation(version = \"${project.version}\",\n" +
+        " date = \"${new Date()}\", revision = \"\", url = \"https://github.com/mongodb/mongo-hadoop\", user = \"\")\n" +
+        "package com.mongodb.sqoop;"
     }
 }
 

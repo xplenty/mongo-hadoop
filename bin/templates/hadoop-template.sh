@@ -47,6 +47,7 @@ start() {
         startService hadoop jobtracker
         startService hadoop tasktracker
     fi
+    sleep 15
     
     if [[ "@HADOOP_VERSION@" == *cdh4* ]]
     then 

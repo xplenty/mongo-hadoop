@@ -23,6 +23,7 @@ examples/data
 logs
 out
 metastore_db/
+sqoop/src/main/java/com/mongodb/sqoop/package-info.java
 streaming/language_support/python/dist/
 streaming/language_support/python/pymongo_hadoop.egg-info/
 tags
