@@ -437,7 +437,7 @@ task copyFiles(dependsOn: [installHadoop, installHive]) << {
 task configureCluster(dependsOn: copyFiles) << {
     println "Configuring ${branchVersion} cluster"
     exec {
-        commandLine "build/hadoop-${branchVersion}.sh"
+        commandLine "build/hadoop-${branchVersion}.rb"
         args "start", "-format"
     }
 }
@@ -543,7 +543,7 @@ def safeCopy(fromPath, toPath, newName) {
 task generateScripts() << {
     hadoopClusters.keySet().each { version ->
         copy {
-            from 'bin/templates/hadoop-template.sh'
+            from 'bin/templates/'
             into "build/"
             filter ReplaceTokens, tokens: [
                     HADOOP_HOME    : "${hadoopBinaries}/hadoop-${hadoopClusters[version]}".toString(),
@@ -554,7 +554,9 @@ task generateScripts() << {
                     BIN            : version.startsWith("1.") ? 'hadoop' : 'hdfs',
                     BIN_PATH       : project.rootDir.getAbsolutePath() + '/bin'
             ]
-            rename { "hadoop-${version}.sh" }
+            rename { 
+                it.replace("template", version) 
+            }
         }
     }
 }
