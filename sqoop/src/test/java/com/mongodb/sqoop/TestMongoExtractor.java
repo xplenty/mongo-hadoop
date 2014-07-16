@@ -61,20 +61,37 @@ public class TestMongoExtractor {
         InitializerContext initializerContext = new InitializerContext(new MutableMapContext());
 
         initializer.initialize(initializerContext, connConf, jobConf);
-        MongoPartition partition;
 
         Extractor extractor = new MongoExtractor();
-        ExtractorContext extractorContext = new ExtractorContext(initializerContext.getContext(), new MockWriter(), null);
+        testRange(connConf, jobConf, initializerContext, extractor, 40, 50);
+        testRange(connConf, jobConf, initializerContext, extractor, -1, 2);
+        testRange(connConf, jobConf, initializerContext, extractor, 600, 1000);
+    }
 
-        partition = new MongoPartition("age", 40, 50);
-        extractor.extract(extractorContext, connConf, jobConf, partition);
+    public void testRange(final MongoConnectionConfiguration connConf, final MongoImportJobConfiguration jobConf,
+                          final InitializerContext initializerContext, final Extractor extractor, final int minValue, final int maxValue) {
+        
+        extractor.extract(new ExtractorContext(initializerContext.getContext(), new MockWriter(minValue, maxValue), null),
+                          connConf, jobConf, new MongoPartition("age", minValue, maxValue));
     }
 
     private class MockWriter extends DataWriter {
+
+        private final int minValue;
+        private final int maxValue;
+
+        public MockWriter(final int minValue, final int maxValue) {
+            this.minValue = minValue;
+            this.maxValue = maxValue;
+        }
+
         @Override
         public void writeArrayRecord(final Object[] objects) {
             Assert.assertTrue("Should only be a 1 element array", objects.length == 1);
             Assert.assertTrue("Should only have a DBObject", objects[0] instanceof DBObject);
+            DBObject object = (DBObject) objects[0];
+            Assert.assertTrue("Should be gte than 40", ((Integer) object.get("age")) >= minValue);
+            Assert.assertTrue("Should be lt 50", ((Integer) object.get("age")) < maxValue);
         }
 
         @Override

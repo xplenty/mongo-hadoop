@@ -3,6 +3,7 @@ package com.mongodb.sqoop;
 import com.mongodb.DBCollection;
 import com.mongodb.DBCursor;
 import com.mongodb.DBObject;
+import com.mongodb.LazyDBDecoder;
 import com.mongodb.MongoClient;
 import com.mongodb.MongoClientURI;
 import com.mongodb.sqoop.configuration.ConnectionForm;
@@ -33,6 +34,7 @@ public class MongoExtractor extends Extractor<MongoConnectionConfiguration, Mong
                                             .getCollection(collectionForm.getCollection());
             DBObject condition = ((MongoPartition) partition).getCondition();
             cursor = collection.find(condition);
+            cursor.setDecoderFactory(LazyDBDecoder.FACTORY);
             try {
                 while (cursor.hasNext()) {
                     context.getDataWriter().writeArrayRecord(new Object[]{cursor.next()});
