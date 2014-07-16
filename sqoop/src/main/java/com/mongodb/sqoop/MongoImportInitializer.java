@@ -1,10 +1,8 @@
 package com.mongodb.sqoop;
 
-import com.mongodb.AggregationOptions;
 import com.mongodb.BasicDBObject;
 import com.mongodb.BasicDBObjectBuilder;
 import com.mongodb.CommandResult;
-import com.mongodb.Cursor;
 import com.mongodb.DBCollection;
 import com.mongodb.DBCursor;
 import com.mongodb.DBObject;
@@ -25,9 +23,7 @@ import org.slf4j.LoggerFactory;
 
 import java.net.UnknownHostException;
 import java.text.DateFormat;
-import java.util.ArrayList;
 import java.util.Date;
-import java.util.List;
 
 public class MongoImportInitializer extends Initializer<MongoConnectionConfiguration, MongoImportJobConfiguration> {
     private static final Logger LOG = LoggerFactory.getLogger(MongoImportInitializer.class);
@@ -66,7 +62,7 @@ public class MongoImportInitializer extends Initializer<MongoConnectionConfigura
                                                               collectionForm.getCollection());
         BasicDBObjectBuilder builder = BasicDBObjectBuilder.start("splitVector", inputCollection.getFullName())
                                                            .add("keyPattern", new BasicDBObject(collectionForm.getPartitionField(), 1))
-                                                           .add("maxChunkSize", 16);
+                                                           .add("force", true);
         final DBObject cmd = builder.get();
 
         CommandResult data;
@@ -134,39 +130,36 @@ public class MongoImportInitializer extends Initializer<MongoConnectionConfigura
     }
 
     private void findMinMax(final MutableContext context, final String partitionField, final MongoImportForm collectionForm) {
-        List<DBObject> pipeline = new ArrayList<DBObject>();
+        DBCollection collection = executor.getCollection(collectionForm.getDatabase(), collectionForm.getCollection());
+        extract(context, collection.find(new BasicDBObject(), new BasicDBObject(partitionField, 1))
+                                   .sort(new BasicDBObject(partitionField, 1)), partitionField, MongoConnector.PARTITION_MIN_VALUE);
+        extract(context, collection.find(new BasicDBObject(), new BasicDBObject(partitionField, 1))
+                                   .sort(new BasicDBObject(partitionField, -1)), partitionField, MongoConnector.PARTITION_MAX_VALUE);
+    }
 
-        pipeline.add(new BasicDBObject("$group", new BasicDBObject("_id", "values")
-                                                     .append("min", new BasicDBObject("$min", "$" + partitionField))
-                                                     .append("max", new BasicDBObject("$max", "$" + partitionField))));
-        Cursor aggregate = executor.getCollection(collectionForm.getDatabase(), collectionForm.getCollection())
-                                   .aggregate(pipeline, AggregationOptions.builder().build());
-        if (aggregate.hasNext()) {
-            DBObject next = aggregate.next();
-            String fieldType;
-            Object min = next.get("min");
-            if (min instanceof Integer) {
-                context.setInteger(MongoConnector.PARTITION_MIN_VALUE, (Integer) min);
-                context.setInteger(MongoConnector.PARTITION_MAX_VALUE, (Integer) next.get("max"));
-                context.setString(MongoConnector.PARTITION_FIELD_TYPE, Integer.class.getName());
-            } else if (min instanceof Long) {
-                context.setLong(MongoConnector.PARTITION_MIN_VALUE, (Long) min);
-                context.setLong(MongoConnector.PARTITION_MAX_VALUE, (Long) next.get("max"));
-                context.setString(MongoConnector.PARTITION_FIELD_TYPE, Long.class.getName());
-            } else if (min instanceof Double) {
-                context.setString(MongoConnector.PARTITION_MIN_VALUE, Double.toString((Double) min));
-                context.setString(MongoConnector.PARTITION_MAX_VALUE, Double.toString((Double) next.get("max")));
-                context.setString(MongoConnector.PARTITION_FIELD_TYPE, Double.class.getName());
-            } else if (min instanceof Date) {
-                context.setString(MongoConnector.PARTITION_MIN_VALUE, DateFormat.getDateTimeInstance().format(min));
-                context.setString(MongoConnector.PARTITION_MAX_VALUE, DateFormat.getDateTimeInstance().format(next.get("max")));
-                context.setString(MongoConnector.PARTITION_FIELD_TYPE, Date.class.getName());
-            } else {
-                context.setString(MongoConnector.PARTITION_MIN_VALUE, min.toString());
-                context.setString(MongoConnector.PARTITION_MAX_VALUE, next.get("max").toString());
-                context.setString(MongoConnector.PARTITION_FIELD_TYPE, String.class.getName());
+    private void extract(final MutableContext context, final DBCursor cursor, final String partitionField, final String fieldName) {
+        if (cursor.hasNext()) {
+            try {
+                Object value = cursor.next().get(partitionField);
+                if (value instanceof Integer) {
+                    context.setInteger(fieldName, (Integer) value);
+                    context.setString(MongoConnector.PARTITION_FIELD_TYPE, Integer.class.getName());
+                } else if (value instanceof Long) {
+                    context.setLong(fieldName, (Long) value);
+                    context.setString(MongoConnector.PARTITION_FIELD_TYPE, Long.class.getName());
+                } else if (value instanceof Double) {
+                    context.setString(fieldName, Double.toString((Double) value));
+                    context.setString(MongoConnector.PARTITION_FIELD_TYPE, Double.class.getName());
+                } else if (value instanceof Date) {
+                    context.setString(fieldName, DateFormat.getDateTimeInstance().format(value));
+                    context.setString(MongoConnector.PARTITION_FIELD_TYPE, Date.class.getName());
+                } else {
+                    context.setString(fieldName, value.toString());
+                    context.setString(MongoConnector.PARTITION_FIELD_TYPE, String.class.getName());
+                }
+            } finally {
+                cursor.close();
             }
-
         }
     }
 
