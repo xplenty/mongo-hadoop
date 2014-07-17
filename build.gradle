@@ -36,14 +36,15 @@ ext.javaDriverVersion = '2.12.3'
 ext.hadoopVersion = '2.4.0'
 
 ext.hadoopHome = "${hadoopBinaries}/hadoop-${clusterVersion}"
+ext.sqoopHome = "${hadoopBinaries}/sqoop-1.99.3-bin-hadoop200"
 ext.hiveHome = "${hadoopBinaries}/hive-${hiveVersion}"
 ext.dataHome = "${hadoopBinaries}/examples/data"
 ext.mongoimport = new File('/mnt/jenkins/mongodb/26/26-release/bin/mongoimport').exists() ?
                   '/mnt/jenkins/mongodb/26/26-release/bin/mongoimport' :
                   '/usr/local/bin/mongoimport';
 ext.mongorestore = new File('/mnt/jenkins/mongodb/26/26-release/bin/mongorestore').exists() ?
-                  '/mnt/jenkins/mongodb/26/26-release/bin/mongorestore' :
-                  '/usr/local/bin/mongorestore';
+                   '/mnt/jenkins/mongodb/26/26-release/bin/mongorestore' :
+                   '/usr/local/bin/mongorestore';
 
 
 buildscript {
@@ -89,7 +90,7 @@ configure(subprojects) {
         tests
         tests.extendsFrom(testCompile)
     }
-    
+
     dependencies {
         compile "org.mongodb:mongo-java-driver:${javaDriverVersion}"
 
@@ -204,8 +205,8 @@ project(":core") {
     dependencies {
         compile "org.apache.hadoop:hadoop-common:${hadoopVersion}"
         compile "org.apache.hadoop:hadoop-mapreduce-client-core:${hadoopVersion}"
-        compile "org.apache.hadoop:hadoop-mapreduce-client-common:${hadoopVersion}" 
-        compile "org.apache.hadoop:hadoop-mapreduce-client-shuffle:${hadoopVersion}" 
+        compile "org.apache.hadoop:hadoop-mapreduce-client-common:${hadoopVersion}"
+        compile "org.apache.hadoop:hadoop-mapreduce-client-shuffle:${hadoopVersion}"
         compile "org.apache.hadoop:hadoop-mapreduce-client-app:${hadoopVersion}"
         compile "org.apache.hadoop:hadoop-mapreduce-client-jobclient:${hadoopVersion}"
     }
@@ -223,7 +224,7 @@ project(":hive") {
         testCompile "org.apache.hive:hive-service:${hiveVersion}"
 
         testCompile project(path: ':core', configuration: 'tests')
-        testCompile("com.nitayjoffe.thirdparty.com.jointhegrid:hive_test:4.0.0")  {
+        testCompile("com.nitayjoffe.thirdparty.com.jointhegrid:hive_test:4.0.0") {
             exclude group: 'org.apache.derby', module: 'derby'
             exclude group: 'org.apache.hadoop', module: 'hadoop-core'
         }
@@ -285,12 +286,12 @@ project(":flume") {
 project(":sqoop") {
     dependencies {
         compile project(":core")
-        
+
         compile 'org.apache.sqoop:sqoop-core:1.99.3'
         compile 'org.apache.sqoop:connector:1.99.3'
         testCompile project(path: ':core', configuration: 'tests')
     }
-    
+
     def file = new File("sqoop/src/main/java/com/mongodb/sqoop/package-info.java")
     file.withWriter {
         it << "@org.apache.sqoop.common.VersionAnnotation(version = \"${project.version}\",\n" +
@@ -333,26 +334,7 @@ project(":integration-tests") {
 }
 
 task cleanHadoop(type: Delete) {
-    delete hadoopHome, hiveHome
-}
-
-task installHadoop() << {
-    new File(hadoopHome).getParentFile().mkdirs()
-
-    def url
-    switch (branchVersion) {
-        case ("cdh4"):
-            url = "http://archive.cloudera.com/cdh4/cdh/4/hadoop-${clusterVersion}.tar.gz"
-            break
-        case ("cdh5"):
-            url = "http://archive.cloudera.com/cdh5/cdh/5/hadoop-${clusterVersion}.tar.gz"
-            break
-        default:
-            url = "http://archive.apache.org/dist/hadoop/common/hadoop-${clusterVersion}/hadoop-${clusterVersion}.tar.gz"
-            break
-    }
-    
-    download(url, hadoopBinaries, hadoopHome)
+    delete hadoopHome, hiveHome, sqoopHome
 }
 
 def download(url, destination, target) {
@@ -361,7 +343,7 @@ def download(url, destination, target) {
     def count = 0;
     while (!(new File(target + "/bin").exists())) {
         try {
-            if(!new File(file).exists()) {
+            if (!new File(file).exists()) {
                 println "${target} not found.  Downloading from ${url} to ${file}"
             }
             download {
@@ -381,10 +363,29 @@ def download(url, destination, target) {
             new File(target).deleteDir()
             new File(file).delete()
         }
-        if(count++ > 3) {
-            throw new GradleException();
+        if (count++ > 3) {
+            throw new GradleException("Failed to extract file after 3 attempts");
         }
     }
+}
+
+task installHadoop() << {
+    new File(hadoopHome).getParentFile().mkdirs()
+
+    def url
+    switch (branchVersion) {
+        case ("cdh4"):
+            url = "http://archive.cloudera.com/cdh4/cdh/4/hadoop-${clusterVersion}.tar.gz"
+            break
+        case ("cdh5"):
+            url = "http://archive.cloudera.com/cdh5/cdh/5/hadoop-${clusterVersion}.tar.gz"
+            break
+        default:
+            url = "http://archive.apache.org/dist/hadoop/common/hadoop-${clusterVersion}/hadoop-${clusterVersion}.tar.gz"
+            break
+    }
+
+    download(url, hadoopBinaries, hadoopHome)
 }
 
 task installHive() << {
@@ -405,7 +406,13 @@ task installHive() << {
 
 }
 
-task copyFiles(dependsOn: [installHadoop, installHive]) << {
+task installSqoop() << {
+    def url = "http://archive.apache.org/dist/sqoop/1.99.3/sqoop-1.99.3-bin-hadoop200.tar.gz"
+
+    download(url, hadoopBinaries, sqoopHome)
+}
+
+task copyFiles(dependsOn: [installHadoop, installHive, installSqoop]) << {
     def hadoopEtc
     def hadoopLib
     if (clusterVersion.startsWith("1")) {
@@ -418,19 +425,60 @@ task copyFiles(dependsOn: [installHadoop, installHive]) << {
 
     println "Updating mongo jars"
 
+    download {
+        src "http://central.maven.org/maven2/org/mongodb/mongo-java-driver/${javaDriverVersion}/mongo-java-driver-${javaDriverVersion}.jar"
+        dest hadoopBinaries
+        onlyIfNewer true
+    }
+
     safeCopy("core/build/libs/mongo-hadoop-core-${project(':core').version}.jar", hadoopLib, "mongo-hadoop-core.jar")
     safeCopy("streaming/build/libs/mongo-hadoop-streaming-${project(':core').version}.jar", hadoopLib, "mongo-hadoop-streaming.jar")
     safeCopy("hive/build/libs/mongo-hadoop-hive-${project(':core').version}.jar", hiveHome + '/lib', "mongo-hadoop-hive.jar")
+    safeCopy("${hadoopBinaries}/mongo-java-driver-${javaDriverVersion}.jar", hadoopLib, "mongo-java-driver.jar")
 
-    download {
-        src "http://central.maven.org/maven2/org/mongodb/mongo-java-driver/${javaDriverVersion}/mongo-java-driver-${javaDriverVersion}.jar"
-        dest "${hadoopLib}/mongo-java-driver.jar"
-        onlyIfNewer true
-    }
     println "Updating cluster configuration"
     copy {
         from 'clusterConfigs'
         into hadoopEtc
+    }
+
+    preserveDistroVersion("${sqoopHome}/server/conf/catalina.properties")
+    preserveDistroVersion("${sqoopHome}/server/conf/sqoop.properties")
+    project.ant.replace(file: new File("${sqoopHome}/server/conf/catalina.properties"), token: '/usr/lib/hadoop/*.jar',
+                        value: "${hadoopHome}/share/hadoop/hdfs/*.jar," +
+                               "${hadoopHome}/share/hadoop/hdfs/lib/*.jar," +
+                               "${hadoopHome}/share/hadoop/mapreduce/*.jar," +
+                               "${hadoopHome}/share/hadoop/tools/lib/*.jar," +
+                               "${hadoopHome}/share/hadoop/yarn/*.jar," +
+                               "${hadoopHome}/share/hadoop/common/*.jar," +
+                               "${hadoopHome}/share/hadoop/common/lib/*.jar")
+    copy {
+        from "${sqoopHome}/server/conf/sqoop.properties.save"
+        into "${sqoopHome}/server/conf/"
+        filter ReplaceTokens, tokens: [
+                LOGDIR         : project.rootDir.getAbsolutePath() + "/logs".toString(),
+                BASEDIR        : sqoopHome.toString(),
+        ]
+        rename {
+            'sqoop.properties'
+        }
+    }
+    project.ant.replace(file: new File("${sqoopHome}/server/conf/sqoop.properties"), token: '/etc/hadoop/conf/',
+                        value: "${hadoopHome}/etc/hadoop/")
+}
+
+def preserveDistroVersion(fullPath) {
+    def file = new File(fullPath)
+    def parent = file.getParent()
+    copy {
+        from fullPath + '.save'
+        into parent
+        rename { file.getName() }
+    }
+    copy {
+        from fullPath
+        into parent
+        rename { file.getName() + '.save'}
     }
 }
 
@@ -546,16 +594,17 @@ task generateScripts() << {
             from 'bin/templates/'
             into "build/"
             filter ReplaceTokens, tokens: [
+                    PROJECT_HOME   : project.rootDir.getAbsolutePath(),
                     HADOOP_HOME    : "${hadoopBinaries}/hadoop-${hadoopClusters[version]}".toString(),
+                    HIVE_HOME      : "${hadoopBinaries}/hive-${hiveVersionMap[version]}".toString(),
+                    SQOOP_HOME      : sqoopHome.toString(),
                     HADOOP_BINARIES: hadoopBinaries.toString(),
                     HADOOP_VERSION : hadoopClusters[version].toString(),
-                    HIVE_HOME      : "${hadoopBinaries}/hive-${hiveVersionMap[version]}".toString(),
-                    PROJECT_HOME   : project.rootDir.getAbsolutePath(),
                     BIN            : version.startsWith("1.") ? 'hadoop' : 'hdfs',
                     BIN_PATH       : project.rootDir.getAbsolutePath() + '/bin'
             ]
-            rename { 
-                it.replace("template", version) 
+            rename {
+                it.replace("template", version)
             }
         }
     }

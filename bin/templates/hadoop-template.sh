@@ -71,6 +71,8 @@ start() {
     fi
     echo @HIVE_HOME@/bin/hive --service hiveserver &> "@PROJECT_HOME@/logs/hiveserver.log" &
     @HIVE_HOME@/bin/hive --service hiveserver &> "@PROJECT_HOME@/logs/hiveserver.log" &
+    
+    @SQOOP_HOME@/bin/sqoop.sh server start
 }
 
 stopAll() {
@@ -81,6 +83,7 @@ stopAll() {
     stopService TaskTracker task tracker
     stopService NameNode name node
     stopService RunJar hive server
+    stopService Bootstrap sqoop server
 }
 
 shutdown() {

@@ -57,6 +57,8 @@ def start()
     env['MAPRED_DIR']='@HADOOP_HOME@/share/hadoop/mapreduce2'
   end
   system(env, "@HIVE_HOME@/bin/hive --service hiveserver &> '@PROJECT_HOME@/logs/hiveserver.log' &") 
+  
+  system(env, "@SQOOP_HOME@/bin/sqoop.sh server start") 
 end
 
 def stopAll()
@@ -67,6 +69,7 @@ def stopAll()
   stopService 'TaskTracker', 'task tracker'
   stopService 'NameNode', 'name node'
   stopService 'RunJar', 'hive server'
+  stopService 'Bootstrap', 'sqoop server'
 end
 
 def shutdown()
