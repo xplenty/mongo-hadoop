@@ -29,6 +29,7 @@ ext.hadoopClusters = [
 ].withDefault {
     throw new GradleException("Unknown hadoop version: ${it}")
 }
+project.getProperties().put("hadoop.profile", "hadoop200")
 
 ext.clusterVersion = hadoopClusters[branchVersion]
 ext.hiveVersion = hiveVersionMap[branchVersion]
@@ -125,6 +126,7 @@ configure(subprojects) {
         systemProperty 'project.version', project.version
         systemProperty 'cluster.version', hadoopClusters[branchVersion]
         systemProperty 'hadoop.version', branchVersion
+        systemProperty 'hadoop.profile', '200'
         systemProperties << System.getProperties()
 
         beforeTest { descr ->
@@ -284,11 +286,16 @@ project(":flume") {
 }
 
 project(":sqoop") {
+    archivesBaseName = "mongo-hadoop-sqoop"
     dependencies {
         compile project(":core")
 
         compile 'org.apache.sqoop:sqoop-core:1.99.3'
         compile 'org.apache.sqoop:connector:1.99.3'
+        testCompile 'org.apache.sqoop:sqoop-client:1.99.3'
+        testCompile('org.apache.sqoop:sqoop-server:1.99.3') {
+            exclude group: 'org.apache.sqoop.submission', module: 'sqoop-submission-mapreduce'
+        }
         testCompile project(path: ':core', configuration: 'tests')
     }
 
@@ -410,11 +417,19 @@ task installSqoop() << {
     def url = "http://archive.apache.org/dist/sqoop/1.99.3/sqoop-1.99.3-bin-hadoop200.tar.gz"
 
     download(url, hadoopBinaries, sqoopHome)
+    
+    copy {
+        from zipTree("${sqoopHome}/server/webapps/sqoop.war")
+        into "${sqoopHome}/server/webapps/sqoop"
+    }
+    
 }
 
 task copyFiles(dependsOn: [installHadoop, installHive, installSqoop]) << {
     def hadoopEtc
     def hadoopLib
+    def sqoopLib = new File(sqoopHome + '/lib')
+    sqoopLib.mkdirs()
     if (clusterVersion.startsWith("1")) {
         hadoopLib = "${hadoopHome}/lib"
         hadoopEtc = "${hadoopHome}/conf"
@@ -434,6 +449,11 @@ task copyFiles(dependsOn: [installHadoop, installHive, installSqoop]) << {
     safeCopy("core/build/libs/mongo-hadoop-core-${project(':core').version}.jar", hadoopLib, "mongo-hadoop-core.jar")
     safeCopy("streaming/build/libs/mongo-hadoop-streaming-${project(':core').version}.jar", hadoopLib, "mongo-hadoop-streaming.jar")
     safeCopy("hive/build/libs/mongo-hadoop-hive-${project(':core').version}.jar", hiveHome + '/lib', "mongo-hadoop-hive.jar")
+
+//    safeCopy("sqoop/build/libs/mongo-hadoop-sqoop-${project(':core').version}.jar", sqoopLib, "mongo-hadoop-sqoop.jar")
+    safeCopy("sqoop/build/libs/mongo-hadoop-sqoop-${project(':core').version}.jar", sqoopHome + '/server/webapps/sqoop/WEB-INF/lib',
+             "mongo-hadoop-sqoop.jar")
+    
     safeCopy("${hadoopBinaries}/mongo-java-driver-${javaDriverVersion}.jar", hadoopLib, "mongo-java-driver.jar")
 
     println "Updating cluster configuration"

@@ -46,6 +46,7 @@ public class MongoPartition extends Partition {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public void readFields(final DataInput in) throws IOException {
         condition = (DBObject) JSON.parse(in.readUTF());
         List<DBObject> list = (List<DBObject>) condition.get("$and");

@@ -72,6 +72,7 @@ start() {
     echo @HIVE_HOME@/bin/hive --service hiveserver &> "@PROJECT_HOME@/logs/hiveserver.log" &
     @HIVE_HOME@/bin/hive --service hiveserver &> "@PROJECT_HOME@/logs/hiveserver.log" &
     
+    > '@PROJECT_HOME@/logs/sqoop.log' 
     @SQOOP_HOME@/bin/sqoop.sh server start
 }
 

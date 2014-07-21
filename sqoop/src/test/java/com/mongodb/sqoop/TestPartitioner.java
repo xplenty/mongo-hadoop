@@ -190,9 +190,9 @@ public class TestPartitioner {
         MongoConnectionConfiguration connConf = new MongoConnectionConfiguration();
         MongoImportJobConfiguration jobConf = new MongoImportJobConfiguration();
         connConf.getConnectionForm().setUri(uri.toString());
-        jobConf.getCollectionForm().setDatabase(uri.getDatabase());
-        jobConf.getCollectionForm().setCollection(uri.getCollection());
-        jobConf.getCollectionForm().setPartitionField(partitionField);
+        jobConf.getImportForm().setDatabase(uri.getDatabase());
+        jobConf.getImportForm().setCollection(uri.getCollection());
+        jobConf.getImportForm().setPartitionField(partitionField);
 
         InitializerContext initializerContext = new InitializerContext(new MutableMapContext());
         initializer.initialize(initializerContext, connConf, jobConf);

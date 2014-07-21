@@ -1,13 +1,18 @@
 package com.mongodb.sqoop.configuration;
 
 import org.apache.sqoop.model.FormClass;
+import org.apache.sqoop.model.Input;
 
 @FormClass
 public class MongoImportForm {
+    @Input
     private String collection;
+    @Input
     private String database;
+    @Input
     private String partitionField;
-    private String url;
+    @Input
+    private String uri;
 
     public String getCollection() {
         return collection;
@@ -33,11 +38,11 @@ public class MongoImportForm {
         return partitionField;
     }
 
-    public String getUrl() {
-        return url;
+    public String getUri() {
+        return uri;
     }
 
-    public void setUrl(final String url) {
-        this.url = url;
+    public void setUri(final String uri) {
+        this.uri = uri;
     }
 }

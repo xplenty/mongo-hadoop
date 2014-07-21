@@ -21,13 +21,12 @@ public class MongoConnector extends SqoopConnector {
     public static final String PARTITION_MAX_VALUE = "mongo.sqoop.partition.max.value";
     public static final String PARTITION_MIN_VALUE = "mongo.sqoop.partition.min.value";
 
-    private static String version;
+    private String version;
 
     @Override
     public String getVersion() {
         if (version == null) {
-            Package aPackage = Package.getPackage("com.mongodb.sqoop");
-            VersionAnnotation annotation = aPackage.getAnnotation(VersionAnnotation.class);
+            VersionAnnotation annotation = getClass().getPackage().getAnnotation(VersionAnnotation.class);
             version = annotation.version();
         }
         return version;
@@ -58,7 +57,7 @@ public class MongoConnector extends SqoopConnector {
     @Override
     public Importer getImporter() {
         return new Importer(MongoImportInitializer.class, MongoPartitioner.class, MongoExtractor.class,
-                            MongoDestroyer.class);
+                                                             MongoDestroyer.class);
     }
 
     @Override

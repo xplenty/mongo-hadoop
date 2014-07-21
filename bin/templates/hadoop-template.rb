@@ -56,8 +56,11 @@ def start()
   if '@HADOOP_VERSION@'.include? "cdh"
     env['MAPRED_DIR']='@HADOOP_HOME@/share/hadoop/mapreduce2'
   end
-  system(env, "@HIVE_HOME@/bin/hive --service hiveserver &> '@PROJECT_HOME@/logs/hiveserver.log' &") 
-  
+  system(env, "@HIVE_HOME@/bin/hive --service hiveserver &> '@PROJECT_HOME@/logs/hiveserver.log' &")
+
+  file = File.new('@PROJECT_HOME@/logs/sqoop.log', 'w')
+  file.truncate(0)
+  file.close()
   system(env, "@SQOOP_HOME@/bin/sqoop.sh server start") 
 end
 

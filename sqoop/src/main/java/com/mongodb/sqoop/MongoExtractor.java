@@ -29,7 +29,7 @@ public class MongoExtractor extends Extractor<MongoConnectionConfiguration, Mong
         DBCursor cursor = null;
         try {
             client = new MongoClient(new MongoClientURI(url));
-            MongoImportForm collectionForm = jobConfiguration.getCollectionForm();
+            MongoImportForm collectionForm = jobConfiguration.getImportForm();
             DBCollection collection = client.getDB(collectionForm.getDatabase())
                                             .getCollection(collectionForm.getCollection());
             DBObject condition = ((MongoPartition) partition).getCondition();

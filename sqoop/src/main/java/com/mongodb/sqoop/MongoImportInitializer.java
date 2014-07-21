@@ -18,6 +18,7 @@ import org.apache.sqoop.common.MutableContext;
 import org.apache.sqoop.job.etl.Initializer;
 import org.apache.sqoop.job.etl.InitializerContext;
 import org.apache.sqoop.schema.Schema;
+import org.apache.sqoop.schema.type.Binary;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,7 +47,7 @@ public class MongoImportInitializer extends Initializer<MongoConnectionConfigura
     private void configurePartitionProperties(final MutableContext context, final MongoConnectionConfiguration connectionConfig,
                                               final MongoImportJobConfiguration jobConfig) {
 
-        MongoImportForm collectionForm = jobConfig.getCollectionForm();
+        MongoImportForm collectionForm = jobConfig.getImportForm();
         String partitionField = collectionForm.getPartitionField();
         if (partitionField == null) {
             partitionField = "_id";
@@ -167,6 +168,12 @@ public class MongoImportInitializer extends Initializer<MongoConnectionConfigura
     @Override
     public Schema getSchema(final InitializerContext context, final MongoConnectionConfiguration connectionConfiguration,
                             final MongoImportJobConfiguration importJobConfiguration) {
-        throw new UnsupportedOperationException("Not implemented yet!");
+        MongoImportForm importForm = importJobConfiguration.getImportForm();
+        Schema schema = new Schema(importForm.getDatabase() + "/" + importForm.getCollection());
+        Binary column = new Binary();
+        column.setName("bson");
+        schema.addColumn(column);
+        
+        return schema;
     }
 }

@@ -1,16 +1,18 @@
 package com.mongodb.sqoop.configuration;
 
+import org.apache.sqoop.model.ConfigurationClass;
 import org.apache.sqoop.model.Form;
 
+@ConfigurationClass
 public class MongoExportJobConfiguration {
     @Form
-    private MongoExportForm table = new MongoExportForm();
+    private MongoExportForm exportForm = new MongoExportForm();
 
     public MongoExportJobConfiguration() {
     }
 
-    public MongoExportForm getTable() {
-        return table;
+    public MongoExportForm getExportForm() {
+        return exportForm;
     }
     
 }

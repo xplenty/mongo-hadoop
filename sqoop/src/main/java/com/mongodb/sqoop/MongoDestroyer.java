@@ -9,6 +9,5 @@ public class MongoDestroyer extends Destroyer<MongoConnectionConfiguration, Mong
     @Override
     public void destroy(final DestroyerContext context, final MongoConnectionConfiguration mongoConnectionConfiguration,
                         final MongoImportJobConfiguration mongoImportJobConfiguration) {
-        throw new UnsupportedOperationException("Not implemented yet!");
     }
 }
