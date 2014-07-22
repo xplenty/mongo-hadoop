@@ -29,7 +29,6 @@ ext.hadoopClusters = [
 ].withDefault {
     throw new GradleException("Unknown hadoop version: ${it}")
 }
-project.getProperties().put("hadoop.profile", "hadoop200")
 
 ext.clusterVersion = hadoopClusters[branchVersion]
 ext.hiveVersion = hiveVersionMap[branchVersion]
@@ -170,7 +169,7 @@ configure(subprojects) {
         options.links 'http://hadoop.apache.org/docs/r2.4.0/api'
         options.links 'http://api.mongodb.org/java/2.12.0/'
     }
-
+    
     task testJar(type: Jar, dependsOn: testClasses) {
         from sourceSets.test.output
     }
@@ -181,6 +180,7 @@ configure(subprojects) {
             mustRunAfter jar
         }
     }
+    jar.finalizedBy testJar
 
     configurations {
     }

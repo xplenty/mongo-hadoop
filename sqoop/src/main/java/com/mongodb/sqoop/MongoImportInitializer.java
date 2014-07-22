@@ -142,6 +142,7 @@ public class MongoImportInitializer extends Initializer<MongoConnectionConfigura
         if (cursor.hasNext()) {
             try {
                 Object value = cursor.next().get(partitionField);
+                LOG.error("value = " + value);
                 if (value instanceof Integer) {
                     context.setInteger(fieldName, (Integer) value);
                     context.setString(MongoConnector.PARTITION_FIELD_TYPE, Integer.class.getName());
