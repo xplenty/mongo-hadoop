@@ -43,8 +43,8 @@ public class MongoLoader extends LoadFunc implements LoadMetadata {
     private final MongoInputFormat inputFormat = new MongoInputFormat();
     private static final String PIG_INPUT_SCHEMA_UDF_CONTEXT = "mongo.pig.input.schema.udf_context";
     private ResourceFieldSchema[] fields;
+    private String[] inputFields;
     private String idAlias = null;
-
     @Override
     public void setUDFContextSignature( String signature ){
         _udfContextSignature = signature;
@@ -62,15 +62,22 @@ public class MongoLoader extends LoadFunc implements LoadMetadata {
     
     public MongoLoader(String userSchema, String idAlias) {
         this.idAlias = idAlias;
-    	try {
-			schema = new ResourceSchema(Utils.getSchemaFromString(userSchema));
-			fields = schema.getFields();
-		} catch (Exception e) {
-			throw new IllegalArgumentException("Invalid Schema Format");
-		}
+        try {
+            schema = new ResourceSchema(Utils.getSchemaFromString(userSchema));
+            fields = schema.getFields();
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Invalid Schema Format", e);
+        }
     }
 
-    public MongoLoader(String userSchema) {
+    public MongoLoader(final String userSchema, final String idAlias, final String inputFields) {
+    	this(userSchema, idAlias);
+        this.inputFields = inputFields.split(",");
+        if (fields != null && fields.length != this.inputFields.length)
+        	throw new IllegalArgumentException("Input fields should have the same amount of fields as user schema");
+    }
+
+    public MongoLoader(final String userSchema) {
         this(userSchema, null);
     }
 
@@ -115,11 +122,14 @@ public class MongoLoader extends LoadFunc implements LoadMetadata {
             t.set(0, BSONLoader.convertBSONtoPigType(val));
         }else{
             t = tupleFactory.newTuple(fields.length);
-            for(int i = 0; i < fields.length; i++) {
-                String fieldTemp = fields[i].getName();
-                if(this.idAlias != null && this.idAlias.equals(fieldTemp)){
+            for (int i = 0; i < fields.length; i++) {
+				String fieldTemp = fields[i].getName();
+                if (idAlias != null && idAlias.equals(fieldTemp)) {
                     fieldTemp = "_id";
-                }
+                } 
+                if (inputFields != null)
+                	fieldTemp = inputFields[i];
+                ResourceFieldSchema resouceFieldTemp = fields[i];
                 t.set(i, BSONLoader.readField(val.get(fieldTemp), fields[i]));
             }
         }

@@ -19,7 +19,7 @@ object MongoHadoopBuild extends Build {
   val loadSampleData = TaskKey[Unit]("load-sample-data", "Loads sample data for example programs")
 
 
-  private val stockPig = "0.9.2"
+  private val stockPig = "0.12.1"
   private val stockHive = "0.10.0"
   private val cdh3Rel = "cdh3u3"
   private val cdh3Hadoop = "0.20.2-%s".format(cdh3Rel) // current "base" version they patch against
@@ -44,6 +44,8 @@ object MongoHadoopBuild extends Build {
                                   "1.0.x" -> hadoopDependencies("1.0.4", false, stockPig, stockHive),
                                   "1.1" -> hadoopDependencies("1.1.2", true, stockPig, stockHive),
                                   "1.1.x" -> hadoopDependencies("1.1.2", true, stockPig, stockHive),
+                                  "1.2" -> hadoopDependencies("1.2.0", true, stockPig, stockHive),
+                                  "1.2.x" -> hadoopDependencies("1.2.0", true, stockPig, stockHive),
                                   "2.2" -> hadoopDependencies("2.2.0", true, stockPig, stockHive, nextGen=true),
                                   "2.2.x" -> hadoopDependencies("2.2.0", true, stockPig, stockHive, nextGen=true),
                                   "default" -> hadoopDependencies("1.0.4", false, stockPig, stockHive)
