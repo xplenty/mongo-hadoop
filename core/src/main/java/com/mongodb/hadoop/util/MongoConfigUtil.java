@@ -17,13 +17,7 @@
 
 package com.mongodb.hadoop.util;
 
-import com.mongodb.BasicDBObject;
-import com.mongodb.DBCollection;
-import com.mongodb.DBObject;
-import com.mongodb.Mongo;
-import com.mongodb.MongoClient;
-import com.mongodb.MongoClientURI;
-import com.mongodb.MongoURI;
+import com.mongodb.*;
 import com.mongodb.hadoop.splitter.MongoSplitter;
 import com.mongodb.util.JSON;
 import org.apache.commons.lang.StringUtils;
@@ -44,14 +38,10 @@ import org.apache.hadoop.mapreduce.Reducer;
 import java.io.IOException;
 import java.net.URI;
 import java.net.UnknownHostException;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.Map.Entry;
-import java.util.Properties;
+
+import static java.util.Arrays.asList;
 
 /**
  * Configuration helper tool for MongoDB related Map/Reduce jobs
@@ -88,6 +78,8 @@ public final class MongoConfigUtil {
     public static final String OUTPUT_BATCH_SIZE = "mongo.output.batch.size";
 
     public static final String MONGO_SPLITTER_CLASS = "mongo.splitter.class";
+
+    public static final String MONGO_ALLOW_NON_MATCHING_SSL_HOST = "mongo.ssl.host.allow.non.matching";
 
     /**
      * <p>
@@ -276,6 +268,8 @@ public final class MongoConfigUtil {
               return new HashMap<MongoClient, MongoClientURI>();
           }
       };
+
+    private static boolean allowNonMatchingHostNames;
 
     private MongoConfigUtil() {
     }
@@ -917,6 +911,16 @@ public final class MongoConfigUtil {
         return conf.getBoolean(INPUT_NOTIMEOUT, false);
     }
 
+    public static void setAllowNonMatchingSslHost(final Configuration conf, final boolean value) {
+        conf.setBoolean(MONGO_ALLOW_NON_MATCHING_SSL_HOST, value);
+        allowNonMatchingHostNames = value;
+    }
+
+    public static boolean isAllowNonMatchingSslHost(final Configuration conf) {
+        allowNonMatchingHostNames = conf.getBoolean(MONGO_ALLOW_NON_MATCHING_SSL_HOST, false);
+        return allowNonMatchingHostNames;
+    }
+
     //BSON-specific config functions.
     public static boolean getBSONReadSplits(final Configuration conf) {
         return conf.getBoolean(BSON_READ_SPLITS, true);
@@ -1056,7 +1060,25 @@ public final class MongoConfigUtil {
     private static MongoClient getMongoClient(final MongoClientURI uri) throws UnknownHostException {
         MongoClient mongoClient = CLIENTS.get().get(uri);
             if (mongoClient == null) {
-                mongoClient = new MongoClient(uri);
+                if (allowNonMatchingHostNames) {
+                    MongoClientOptions.Builder optionsBuilder = new MongoClientOptions.Builder(uri.getOptions());
+                    optionsBuilder.sslInvalidHostNameAllowed(true);
+                    final List<MongoCredential> credentialList = uri.getCredentials() != null
+                            ? Collections.singletonList(uri.getCredentials())
+                            : Collections.<MongoCredential>emptyList();
+                    final List<ServerAddress> seedList;
+                    if (uri.getHosts().size() == 1) {
+                        seedList = Collections.singletonList(new ServerAddress(uri.getHosts().get(0)));
+                    } else {
+                        seedList = new ArrayList<ServerAddress>(uri.getHosts().size());
+                        for (final String host : uri.getHosts()) {
+                            seedList.add(new ServerAddress(host));
+                        }
+                    }
+                    mongoClient = new MongoClient(seedList, credentialList, optionsBuilder.build());
+                } else {
+                    mongoClient = new MongoClient(uri);
+                }
                 CLIENTS.get().put(uri, mongoClient);
                 URI_MAP.get().put(mongoClient, uri);
             }
