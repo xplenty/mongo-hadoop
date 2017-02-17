@@ -7,7 +7,7 @@ apply plugin: 'com.github.ben-manes.versions'
 
 ext.configDir = new File(rootDir, 'config')
 ext.hadoopBinaries = "${rootDir}/hadoop-binaries".toString()
-ext.javaDriverVersion = '3.2.1'
+ext.javaDriverVersion = '3.4.2'
 ext.hiveVersion = '1.2.1'
 ext.pigVersion = '0.15.0'
 ext.hadoopVersion = '1.2.1'
