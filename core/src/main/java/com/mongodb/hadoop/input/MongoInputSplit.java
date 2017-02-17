@@ -86,6 +86,7 @@ public class MongoInputSplit extends InputSplit implements Writable, org.apache.
         setQuery(MongoConfigUtil.getQuery(conf));
         setSort(MongoConfigUtil.getSort(conf));
         setLimit(MongoConfigUtil.getLimit(conf));
+        MongoConfigUtil.isAllowNonMatchingSslHost(conf);
     }
 
     public void setInputURI(final MongoClientURI inputURI) {
