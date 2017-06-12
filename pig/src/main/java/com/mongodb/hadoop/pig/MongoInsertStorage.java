@@ -44,6 +44,7 @@ import java.util.Properties;
 public class MongoInsertStorage extends StoreFunc implements StoreMetadata {
 
     // Pig specific settings
+	static final String UNDERSCORE_PREFIX_SETTING = "mongoinsert.pig.underscore";
     static final String SCHEMA_SIGNATURE = "mongoinsert.pig.output.schema";
     private static final Log LOG = LogFactory.getLog(MongoStorage.class);
     private final MongoOutputFormat outputFormat = new MongoOutputFormat();
@@ -53,6 +54,7 @@ public class MongoInsertStorage extends StoreFunc implements StoreMetadata {
     private RecordWriter out;
     private String udfcSignature = null;
     private String idField = null;
+    private String underscorePrefix = "underscore";
 
     public MongoInsertStorage() {
     }
@@ -92,7 +94,9 @@ public class MongoInsertStorage extends StoreFunc implements StoreMetadata {
     }
 
     public void setStoreLocation(final String location, final Job job) throws IOException {
-        final Configuration config = job.getConfiguration();
+        final Configuration config = job.getConfiguration();        
+        underscorePrefix = config.get(UNDERSCORE_PREFIX_SETTING, underscorePrefix);
+        LOG.info("underscore prefix set to: " + underscorePrefix);
         if (!location.startsWith("mongodb://")) {
             throw new IllegalArgumentException("Invalid URI Format.  URIs must begin with a mongodb:// protocol string.");
         }
@@ -193,12 +197,18 @@ public class MongoInsertStorage extends StoreFunc implements StoreMetadata {
                               final ResourceFieldSchema field,
                               final Object d) throws IOException {
         Object convertedType = BSONStorage.getTypeForBSON(d, field, null);
+        LOG.info("writing field " + field.getName());
         if (field.getName() != null && field.getName().equals(idField)) {
             builder.add("_id", convertedType);
         } else if (field.getName() != null && field.getName().startsWith("underscore_")) {
             builder.add(field.getName().replace("underscore", ""), convertedType);
         } else {
-            builder.add(field.getName(), convertedType);
+        	if (field.getName() != null && field.getName().startsWith(underscorePrefix + "_")) {
+                LOG.info("removing prefix from field " + field.getName());
+        	    builder.add(field.getName().replace(underscorePrefix, ""), convertedType);
+        	} else {
+        		builder.add(field.getName(), convertedType);
+        	}
         }
 
     }
