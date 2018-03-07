@@ -58,7 +58,7 @@ if(project.hasProperty("clusterVersion")) {
 }
 
 allprojects {
-    version = '2.0.2'
+    version = '1.5.15'
     group = 'org.mongodb.mongo-hadoop'
 }
 
@@ -407,7 +407,7 @@ project(":pig") {
         configurations.compile.filter {
             it.name.startsWith('mongo-java-driver')
         }.each {
-            from zipTree(it)
+            //from zipTree(it)
         }
     }
 
