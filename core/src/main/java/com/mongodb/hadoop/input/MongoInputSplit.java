@@ -127,7 +127,7 @@ public class MongoInputSplit extends InputSplit implements Writable, org.apache.
 
     @Override
     public long getLength() {
-        return Long.MAX_VALUE;
+        return 64 * 1024 * 1024;
     }
 
     public String getKeyField() {
