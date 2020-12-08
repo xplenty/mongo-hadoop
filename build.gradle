@@ -329,37 +329,37 @@ project(':spark') {
     }
 }
 
-project(':hive') {
-    archivesBaseName = 'mongo-hadoop-hive'
+// project(':hive') {
+//     archivesBaseName = 'mongo-hadoop-hive'
 
-    configurations {
-        // Dependencies of hive-exec, but not available on Maven.
-        all*.exclude group: 'org.pentaho', module: 'pentaho-aggdesigner-algorithm'
-        all*.exclude group: 'eigenbase', module: 'eigenbase-properties'
-    }
+//     configurations {
+//         // Dependencies of hive-exec, but not available on Maven.
+//         all*.exclude group: 'org.pentaho', module: 'pentaho-aggdesigner-algorithm'
+//         all*.exclude group: 'eigenbase', module: 'eigenbase-properties'
+//     }
 
-    test {
-        onlyIf { JavaVersion.current().isJava7Compatible() }
-    }
+//     test {
+//         onlyIf { JavaVersion.current().isJava7Compatible() }
+//     }
 
-    dependencies {
-        compile project(':core')
+//     dependencies {
+//         compile project(':core')
 
-        compile "org.apache.hive:hive-exec:${hiveVersion}"
-        compile "org.apache.hive:hive-serde:${hiveVersion}"
+//         compile "org.apache.hive:hive-exec:${hiveVersion}"
+//         compile "org.apache.hive:hive-serde:${hiveVersion}"
 
-        testCompile "org.apache.hive:hive-cli:${hiveVersion}"
-        testCompile "org.apache.hive:hive-service:${hiveVersion}"
-        testCompile "org.apache.hive:hive-jdbc:${hiveVersion}"
+//         testCompile "org.apache.hive:hive-cli:${hiveVersion}"
+//         testCompile "org.apache.hive:hive-service:${hiveVersion}"
+//         testCompile "org.apache.hive:hive-jdbc:${hiveVersion}"
 
-        testCompile files(project(':core').sourceSets.test.output)
+//         testCompile files(project(':core').sourceSets.test.output)
 
-        testCompile("com.nitayjoffe.thirdparty.com.jointhegrid:hive_test:4.0.0")  {
-            exclude group: 'org.apache.derby', module: 'derby'
-            exclude group: 'org.apache.hadoop', module: 'hadoop-core'
-        }
-    }
-}
+//         testCompile("com.nitayjoffe.thirdparty.com.jointhegrid:hive_test:4.0.0")  {
+//             exclude group: 'org.apache.derby', module: 'derby'
+//             exclude group: 'org.apache.hadoop', module: 'hadoop-core'
+//         }
+//     }
+// }
 
 project(":pig") {
     archivesBaseName = "mongo-hadoop-pig"
