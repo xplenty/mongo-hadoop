@@ -17,9 +17,11 @@
 package com.mongodb.hadoop.pig;
 
 import com.mongodb.BasicDBObjectBuilder;
+import com.mongodb.ConnectionString;
 import com.mongodb.MongoClientURI;
 import com.mongodb.hadoop.MongoOutputFormat;
 import com.mongodb.hadoop.util.MongoConfigUtil;
+import com.mongodb.hadoop.pig.util.MongoClientURIUtil;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
@@ -93,10 +95,13 @@ public class MongoInsertStorage extends StoreFunc implements StoreMetadata {
 
     public void setStoreLocation(final String location, final Job job) throws IOException {
         final Configuration config = job.getConfiguration();
-        if (!location.startsWith("mongodb://")) {
+        if (!location.startsWith("mongodb://") && !location.startsWith("mongodb+srv://")) {
             throw new IllegalArgumentException("Invalid URI Format.  URIs must begin with a mongodb:// protocol string.");
         }
-        MongoClientURI locURI = new MongoClientURI(location);
+        ConnectionString cs = new ConnectionString(location);
+        String rebuiltUri = !cs.isSrvProtocol() && MongoClientURIUtil.containsReplicaSetMembers(location) ? 
+                                MongoClientURIUtil.rebuildUri(location) : location;
+        MongoClientURI locURI = new MongoClientURI(rebuiltUri);
         LOG.info(String.format(
             "Store location config: %s; for namespace: %s.%s; hosts: %s",
             config, locURI.getDatabase(), locURI.getCollection(),

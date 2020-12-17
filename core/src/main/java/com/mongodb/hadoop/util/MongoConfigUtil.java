@@ -17,8 +17,15 @@
 
 package com.mongodb.hadoop.util;
 
-import com.mongodb.*;
+import com.mongodb.BasicDBObject;
+import com.mongodb.DBCollection;
+import com.mongodb.DBObject;
+import com.mongodb.Mongo;
+import com.mongodb.MongoClient;
+import com.mongodb.MongoClientURI;
+import com.mongodb.MongoURI;
 import com.mongodb.hadoop.splitter.MongoSplitter;
+import com.mongodb.hadoop.splitter.SampleSplitter;
 import com.mongodb.util.JSON;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
@@ -35,17 +42,17 @@ import org.apache.hadoop.mapreduce.OutputFormat;
 import org.apache.hadoop.mapreduce.Partitioner;
 import org.apache.hadoop.mapreduce.Reducer;
 
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.X509TrustManager;
 import java.io.IOException;
 import java.net.URI;
 import java.net.UnknownHostException;
-import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
-import java.security.cert.X509Certificate;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Properties;
 
 /**
  * Configuration helper tool for MongoDB related Map/Reduce jobs
@@ -80,6 +87,7 @@ public final class MongoConfigUtil {
     public static final String INPUT_MONGOS_HOSTS = "mongo.input.mongos_hosts";
     public static final String OUTPUT_URI = "mongo.output.uri";
     public static final String OUTPUT_BATCH_SIZE = "mongo.output.batch.size";
+    public static final String OUTPUT_BULK_ORDERED = "mongo.output.bulk.ordered";
 
     public static final String MONGO_SPLITTER_CLASS = "mongo.splitter.class";
 
@@ -111,6 +119,14 @@ public final class MongoConfigUtil {
     public static final String BSON_OUTPUT_BUILDSPLITS = "bson.output.build_splits";
     public static final String BSON_PATHFILTER = "bson.pathfilter.class";
 
+    // Settings specific to reading from GridFS.
+    public static final String GRIDFS_DELIMITER_PATTERN =
+      "mongo.gridfs.delimiter.pattern";
+    public static final String GRIDFS_DEFAULT_DELIMITER = "(\n|\r\n)";
+    public static final String GRIDFS_WHOLE_FILE_SPLIT =
+      "mongo.gridfs.whole_file";
+    public static final String GRIDFS_READ_BINARY =
+      "mongo.gridfs.read_binary";
 
     /**
      * <p>
@@ -271,22 +287,6 @@ public final class MongoConfigUtil {
           }
       };
 
-    private static SSLContext sslContext = null;
-
-    static {
-        try {
-            sslContext = SSLContext.getInstance("SSL");
-            sslContext.init(null, new TrustManager[] { new X509TrustManager() {
-                public X509Certificate[] getAcceptedIssuers(){ return null; }
-                public void checkClientTrusted(X509Certificate[] certs, String authType) {}
-                public void checkServerTrusted(X509Certificate[] certs, String authType) {}
-            } }, new SecureRandom());
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-
     private MongoConfigUtil() {
     }
 
@@ -404,12 +404,20 @@ public final class MongoConfigUtil {
         String raw = conf.get(key);
         List<MongoClientURI> result = new LinkedList<MongoClientURI>();
         if (raw != null && !raw.trim().isEmpty()) {
-            for (String connectionString : raw.split("mongodb://")) {
-                // Try to be forgiving with formatting.
-                connectionString = StringUtils.strip(connectionString, ", ");
-                if (!connectionString.isEmpty()) {
+            if (raw.contains("mongodb+srv://")) {
+                raw = StringUtils.strip(raw, ", ");
+                if (!raw.isEmpty()) {
                     result.add(
-                      new MongoClientURI("mongodb://" + connectionString));
+                        new MongoClientURI(raw));
+                }
+            } else {
+                for (String connectionString : raw.split("mongodb://")) {
+                    // Try to be forgiving with formatting.
+                    connectionString = StringUtils.strip(connectionString, ", ");
+                    if (!connectionString.isEmpty()) {
+                        result.add(
+                            new MongoClientURI("mongodb://" + connectionString));
+                    }
                 }
             }
         }
@@ -495,7 +503,9 @@ public final class MongoConfigUtil {
      */
     @Deprecated
     public static DBCollection getCollectionWithAuth(final MongoURI uri, final MongoURI authURI) {
-        return getCollectionWithAuth(new MongoClientURI(uri.toString()), new MongoClientURI(authURI.toString()));
+        return getCollectionWithAuth(
+          new MongoClientURI(uri.toString()),
+          new MongoClientURI(authURI.toString()));
     }
 
     /**
@@ -512,11 +522,8 @@ public final class MongoConfigUtil {
 
         DBCollection coll;
         try {
-
-            LOG.info("Connecting to Mongo");
             Mongo mongo = getMongoClient(authURI);
             coll = mongo.getDB(uri.getDatabase()).getCollection(uri.getCollection());
-            LOG.info("Got Mongo connection");
             return coll;
         } catch (Exception e) {
             throw new IllegalArgumentException("Couldn't connect and authenticate to get collection", e);
@@ -530,7 +537,6 @@ public final class MongoConfigUtil {
             throw new IllegalArgumentException("Unable to connect to MongoDB Output Collection.", e);
         }
     }
-
     public static List<DBCollection> getOutputCollections(final Configuration conf) {
         try {
             return getCollections(getOutputURIs(conf), getAuthURI(conf));
@@ -538,7 +544,6 @@ public final class MongoConfigUtil {
             throw new IllegalArgumentException("Unable to connect to MongoDB Output Collection.", e);
         }
     }
-
     public static DBCollection getInputCollection(final Configuration conf) {
         try {
             return getCollection(getInputURI(conf));
@@ -643,6 +648,25 @@ public final class MongoConfigUtil {
      */
     public static int getBatchSize(final Configuration conf) {
         return conf.getInt(OUTPUT_BATCH_SIZE, 1000);
+    }
+
+    /**
+     * Get whether or not bulk writes will be ordered
+     * and sent in a batch to MongoDB as the output of a job.
+     * @param conf the Configuration
+     * @return true if bulk writes will be ordered, false otherwise
+     */
+    public static boolean isBulkOrdered(final Configuration conf) {
+        return conf.getBoolean(OUTPUT_BULK_ORDERED, true);
+    }
+
+    /**
+     * Set whether or not bulk writes should be ordered.
+     * @param conf the Configuration
+     * @param ordered true if bulk writes should be ordered, false otherwise
+     */
+    public static void setBulkOrdered(final Configuration conf, final boolean ordered) {
+        conf.setBoolean(OUTPUT_BULK_ORDERED, ordered);
     }
 
     /**
@@ -841,6 +865,17 @@ public final class MongoConfigUtil {
         return conf.getBoolean(SPLITS_USE_CHUNKS, true);
     }
 
+    public static int getSamplesPerSplit(final Configuration conf) {
+        return conf.getInt(
+          SampleSplitter.SAMPLES_PER_SPLIT,
+          SampleSplitter.DEFAULT_SAMPLES_PER_SPLIT);
+    }
+
+    public static void setSamplesPerSplit(
+      final Configuration conf, final int samples) {
+        conf.setInt(SampleSplitter.SAMPLES_PER_SPLIT, samples);
+    }
+
     /**
      * Set whether using shard chunk splits as InputSplits is enabled.
      * @param conf the Configuration
@@ -917,6 +952,33 @@ public final class MongoConfigUtil {
 
     public static String getInputKey(final Configuration conf) {
         return conf.get(INPUT_KEY, "_id");
+    }
+
+    public static String getGridFSDelimiterPattern(final Configuration conf) {
+        return conf.get(GRIDFS_DELIMITER_PATTERN, GRIDFS_DEFAULT_DELIMITER);
+    }
+
+    public static void setGridFSDelimiterPattern(
+      final Configuration conf, final String pattern) {
+        conf.set(GRIDFS_DELIMITER_PATTERN, pattern);
+    }
+
+    public static boolean isGridFSWholeFileSplit(final Configuration conf) {
+        return conf.getBoolean(GRIDFS_WHOLE_FILE_SPLIT, false);
+    }
+
+    public static void setGridFSWholeFileSplit(
+      final Configuration conf, final boolean split) {
+        conf.setBoolean(GRIDFS_WHOLE_FILE_SPLIT, split);
+    }
+
+    public static boolean isGridFSReadBinary(final Configuration conf) {
+        return conf.getBoolean(GRIDFS_READ_BINARY, false);
+    }
+
+    public static void setGridFSReadBinary(
+      final Configuration conf, final boolean readBinary) {
+        conf.setBoolean(GRIDFS_READ_BINARY, readBinary);
     }
 
     public static void setNoTimeout(final Configuration conf, final boolean value) {
@@ -1062,28 +1124,11 @@ public final class MongoConfigUtil {
                 client.close();
             }
     }
-    
+
     private static MongoClient getMongoClient(final MongoClientURI uri) throws UnknownHostException {
         MongoClient mongoClient = CLIENTS.get().get(uri);
             if (mongoClient == null) {
-                if (uri.getOptions().isSslEnabled()) {
-                    MongoClientOptions options = MongoClientOptions.builder(uri.getOptions()).socketFactory(sslContext.getSocketFactory()).build();
-                    final List<ServerAddress> seedList;
-                    if (uri.getHosts().size() == 1) {
-                        seedList = Collections.singletonList(new ServerAddress(uri.getHosts().get(0)));
-                    } else {
-                        seedList = new ArrayList<ServerAddress>(uri.getHosts().size());
-                        for (final String host : uri.getHosts()) {
-                            seedList.add(new ServerAddress(host));
-                        }
-                    }
-                    List<MongoCredential> credentials = uri.getCredentials() != null ?
-                            Collections.singletonList(uri.getCredentials()) :
-                            Collections.<MongoCredential>emptyList();
-                    mongoClient =  new MongoClient(seedList, credentials, options);
-                } else {
-                    mongoClient = new MongoClient(uri);
-                }
+                mongoClient = new MongoClient(uri);
                 CLIENTS.get().put(uri, mongoClient);
                 URI_MAP.get().put(mongoClient, uri);
             }
