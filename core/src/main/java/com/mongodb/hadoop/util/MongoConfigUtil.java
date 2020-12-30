@@ -22,8 +22,11 @@ import com.mongodb.DBCollection;
 import com.mongodb.DBObject;
 import com.mongodb.Mongo;
 import com.mongodb.MongoClient;
+import com.mongodb.MongoClientOptions;
 import com.mongodb.MongoClientURI;
+import com.mongodb.MongoCredential;
 import com.mongodb.MongoURI;
+import com.mongodb.ServerAddress;
 import com.mongodb.hadoop.splitter.MongoSplitter;
 import com.mongodb.hadoop.splitter.SampleSplitter;
 import com.mongodb.util.JSON;
@@ -42,14 +45,20 @@ import org.apache.hadoop.mapreduce.OutputFormat;
 import org.apache.hadoop.mapreduce.Partitioner;
 import org.apache.hadoop.mapreduce.Reducer;
 
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
 import java.io.IOException;
 import java.net.URI;
 import java.net.UnknownHostException;
+import java.security.SecureRandom;
+import java.security.cert.X509Certificate;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.ArrayList;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
@@ -286,6 +295,22 @@ public final class MongoConfigUtil {
               return new HashMap<MongoClient, MongoClientURI>();
           }
       };
+
+    private static SSLContext sslContext = null;
+
+    static {
+        try {
+            sslContext = SSLContext.getInstance("SSL");
+            sslContext.init(null, new TrustManager[] { new X509TrustManager() {
+                public X509Certificate[] getAcceptedIssuers(){ return null; }
+                public void checkClientTrusted(X509Certificate[] certs, String authType) {}
+                public void checkServerTrusted(X509Certificate[] certs, String authType) {}
+            } }, new SecureRandom());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
 
     private MongoConfigUtil() {
     }
@@ -537,6 +562,7 @@ public final class MongoConfigUtil {
             throw new IllegalArgumentException("Unable to connect to MongoDB Output Collection.", e);
         }
     }
+
     public static List<DBCollection> getOutputCollections(final Configuration conf) {
         try {
             return getCollections(getOutputURIs(conf), getAuthURI(conf));
@@ -544,6 +570,7 @@ public final class MongoConfigUtil {
             throw new IllegalArgumentException("Unable to connect to MongoDB Output Collection.", e);
         }
     }
+
     public static DBCollection getInputCollection(final Configuration conf) {
         try {
             return getCollection(getInputURI(conf));
@@ -1127,13 +1154,45 @@ public final class MongoConfigUtil {
 
     private static MongoClient getMongoClient(final MongoClientURI uri) throws UnknownHostException {
         MongoClient mongoClient = CLIENTS.get().get(uri);
-            if (mongoClient == null) {
+        if (mongoClient == null) {
+            // When connction's hostname are IP address, it is parsed into our localhost name  
+            // So it is necessary to pass CA Certification with these following mechanism
+            if (isLocalhost(uri)) {
+                MongoClientOptions options = MongoClientOptions.builder(uri.getOptions()).socketFactory(sslContext.getSocketFactory()).build();	
+                final List<ServerAddress> seedList;	
+                if (uri.getHosts().size() == 1) {	
+                    seedList = Collections.singletonList(new ServerAddress(uri.getHosts().get(0)));	
+                } else {	
+                    seedList = new ArrayList<ServerAddress>(uri.getHosts().size());	
+                    for (final String host : uri.getHosts()) {	
+                        seedList.add(new ServerAddress(host));	
+                    }	
+                }	
+                List<MongoCredential> credentials = uri.getCredentials() != null ?	
+                        Collections.singletonList(uri.getCredentials()) :	
+                        Collections.<MongoCredential>emptyList();	
+                mongoClient =  new MongoClient(seedList, credentials, options);
+            } else {
                 mongoClient = new MongoClient(uri);
-                CLIENTS.get().put(uri, mongoClient);
-                URI_MAP.get().put(mongoClient, uri);
             }
-            return mongoClient;
+            CLIENTS.get().put(uri, mongoClient);
+            URI_MAP.get().put(mongoClient, uri);
         }
+        return mongoClient;
+    }
+
+    /**
+     * Check whether the hostname is the localhost
+     * @param uri the MongoClientURI
+     * @return true if contains localhost, false otherwise
+     */
+    private static boolean isLocalhost(final MongoClientURI uri) {
+        for (String host: uri.getHosts()) {
+            if (host.split(":")[0].equals("localhost")) 
+                return true;
+		}
+        return false;
+    }
 
     /**
      * Load Properties stored in a .properties file.
