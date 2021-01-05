@@ -20,25 +20,6 @@ public class MongoClientURIUtil {
     private static final Logger logger = LoggerFactory.getLogger(MongoClientURIUtil.class.getName());
 
     /**
-     * Mapping a query string into a map that contains a key and list of its values.
-     * It is very likely that the same key appear more than once in the query string.
-     * @param params a query string
-     * @return map of query string from the url
-     */
-    private static Map<String, List<String>> getQueryMap(String params) {
-        Map<String, List<String>> map = new HashMap<String, List<String>>();
-        for (String param : params.split("&")) {
-            String name = param.split("=")[0];  
-            String value = param.split("=")[1]; 
-            List<String> val = map.containsKey(name) ? 
-                map.get(name) : new ArrayList<String>();
-            val.add(value);
-            map.put(name, val);
-        }
-        return map;
-    }
-
-    /**
      * Rebuild a URI to be compatible with current MongoDB JDBC.
      * Mapping all replica_set_members as a comma-separated host.
      * @param locationPath the value of location path
@@ -79,12 +60,18 @@ public class MongoClientURIUtil {
         return locationPath;
     }
 
-    public static boolean containsReplicaSetMembers(String location) {
+    public static boolean containsReplicaSetMembers(String locationPath) {
         try {
-            URI uri = new URI(location);
-            Map<String, List<String>> queryMap = getQueryMap(uri.getQuery());
-            
-            return queryMap.containsKey("replica_set_members"); 
+            URIBuilder uriBuilder = new URIBuilder(locationPath);
+			List<NameValuePair> queryParameters = uriBuilder.getQueryParams();
+			for (Iterator<NameValuePair> queryParameterItr = queryParameters.iterator(); queryParameterItr.hasNext();) {
+                NameValuePair queryParameter = queryParameterItr.next();
+                if (queryParameter.getName().equals("replica_set_members")) {
+					return true;
+                }
+            }
+
+            return false;
         } catch (URISyntaxException e) {
             logger.error("Unable to parse uri", e);
         }
