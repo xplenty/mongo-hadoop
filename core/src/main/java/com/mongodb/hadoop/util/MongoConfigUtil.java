@@ -1155,22 +1155,20 @@ public final class MongoConfigUtil {
     private static MongoClient getMongoClient(final MongoClientURI uri) throws UnknownHostException {
         MongoClient mongoClient = CLIENTS.get().get(uri);
         if (mongoClient == null) {
-            // When connction's hostname are IP address, it is parsed into our localhost name  
-            // So it is necessary to pass CA Certification with these following mechanism
-            if (isLocalhost(uri)) {
-                MongoClientOptions options = MongoClientOptions.builder(uri.getOptions()).socketFactory(sslContext.getSocketFactory()).build();	
-                final List<ServerAddress> seedList;	
-                if (uri.getHosts().size() == 1) {	
-                    seedList = Collections.singletonList(new ServerAddress(uri.getHosts().get(0)));	
-                } else {	
-                    seedList = new ArrayList<ServerAddress>(uri.getHosts().size());	
-                    for (final String host : uri.getHosts()) {	
-                        seedList.add(new ServerAddress(host));	
-                    }	
-                }	
-                List<MongoCredential> credentials = uri.getCredentials() != null ?	
-                        Collections.singletonList(uri.getCredentials()) :	
-                        Collections.<MongoCredential>emptyList();	
+            if (uri.getOptions().isSslEnabled() && !uri.getURI().startsWith("mongodb+srv://")) {
+                MongoClientOptions options = MongoClientOptions.builder(uri.getOptions()).socketFactory(sslContext.getSocketFactory()).build();
+                final List<ServerAddress> seedList;
+                if (uri.getHosts().size() == 1) {
+                    seedList = Collections.singletonList(new ServerAddress(uri.getHosts().get(0)));
+                } else {
+                    seedList = new ArrayList<ServerAddress>(uri.getHosts().size());
+                    for (final String host : uri.getHosts()) {
+                        seedList.add(new ServerAddress(host));
+                    }
+                }
+                List<MongoCredential> credentials = uri.getCredentials() != null ?
+                        Collections.singletonList(uri.getCredentials()) :
+                        Collections.<MongoCredential>emptyList();
                 mongoClient =  new MongoClient(seedList, credentials, options);
             } else {
                 mongoClient = new MongoClient(uri);
@@ -1179,19 +1177,6 @@ public final class MongoConfigUtil {
             URI_MAP.get().put(mongoClient, uri);
         }
         return mongoClient;
-    }
-
-    /**
-     * Check whether the hostname is the localhost
-     * @param uri the MongoClientURI
-     * @return true if contains localhost, false otherwise
-     */
-    private static boolean isLocalhost(final MongoClientURI uri) {
-        for (String host: uri.getHosts()) {
-            if (host.split(":")[0].equals("localhost")) 
-                return true;
-		}
-        return false;
     }
 
     /**
