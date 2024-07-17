@@ -263,7 +263,9 @@ public class BSONLoader extends LoadFunc {
         } else if (o instanceof Number || o instanceof String) {
             return o;
         } else if (o instanceof Date) {
-            return ((Date) o).getTime();
+            // Return the Date value as is.
+            // Previous implementation converts the date to Int64.
+            return o;
         } else if (o instanceof ObjectId) {
             return o.toString();
         } else if (o instanceof UUID) {

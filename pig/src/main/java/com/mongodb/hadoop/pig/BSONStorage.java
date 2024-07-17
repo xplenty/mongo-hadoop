@@ -105,8 +105,11 @@ public class BSONStorage extends StoreFunc implements StoreMetadata {
             case DataType.BYTEARRAY:
                 if (o instanceof PigBoxedBSONValue) {
                     return ((PigBoxedBSONValue) o).getObject();
+                } else {
+                    // Return the Array as is.
+                    // Previous implementation converts Array to raw string.
+                    return o;
                 }
-                return o.toString();
             case DataType.CHARARRAY:
                 return o;
             case DataType.DATETIME:

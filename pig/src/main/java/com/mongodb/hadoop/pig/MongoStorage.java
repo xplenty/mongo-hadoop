@@ -260,7 +260,7 @@ public class MongoStorage extends StoreFunc implements StoreMetadata {
 
     public void setStoreLocation(final String location, final Job job) throws IOException {
         final Configuration config = job.getConfiguration();
-        if (!location.startsWith("mongodb://")) {
+        if (!location.startsWith("mongodb://") && !location.startsWith("mongodb+srv://")) {
             throw new IllegalArgumentException("Invalid URI Format.  URIs must begin with a mongodb:// protocol string.");
         }
         MongoClientURI locURI = new MongoClientURI(location);
