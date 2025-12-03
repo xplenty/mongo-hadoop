@@ -17,6 +17,7 @@
 
 package com.mongodb.hadoop.util;
 
+import com.jcraft.jsch.JSchException;
 import com.mongodb.BasicDBObject;
 import com.mongodb.DBCollection;
 import com.mongodb.DBObject;
@@ -146,6 +147,31 @@ public final class MongoConfigUtil {
      * </p>
      */
     public static final String AUTH_URI = "mongo.auth.uri";
+
+    /**
+     * SSH Configuration for tunneling MongoDB connections.
+     * 
+     * <p>These settings support public key authentication where:
+     * <ul>
+     *   <li>Your Hadoop cluster nodes have SSH private keys</li>
+     *   <li>The customer's bastion host has the corresponding public keys</li>
+     * </ul>
+     */
+    public static final String SSH_HOST = "mongo.ssh.host";
+    public static final String SSH_PORT = "mongo.ssh.port";
+    public static final String SSH_USER = "mongo.ssh.user";
+    public static final String SSH_PASSWORD = "mongo.ssh.password";
+    public static final String SSH_PRIVATE_KEY_PATH = "mongo.ssh.private_key_path";
+    /**
+     * Passphrase to decrypt the private key file (if encrypted).
+     * NOT needed for most setups - only if your private key was created with a passphrase.
+     * For automated systems like Hadoop, private keys are typically unencrypted.
+     */
+    public static final String SSH_PRIVATE_KEY_PASSPHRASE = "mongo.ssh.private_key_passphrase";
+    public static final String SSH_STRICT_HOST_KEY_CHECKING = "mongo.ssh.strict_host_key_checking";
+    public static final String SSH_ENABLED = "mongo.ssh.enabled";
+    public static final String SSH_KNOWN_HOSTS_PATH = "mongo.ssh.known_hosts_path";
+    public static final String SSH_USE_DEFAULT_KEYS = "mongo.ssh.use_default_keys";
 
 
     /**
@@ -557,7 +583,7 @@ public final class MongoConfigUtil {
 
     public static DBCollection getOutputCollection(final Configuration conf) {
         try {
-            return getCollection(getOutputURI(conf));
+            return getCollectionWithSSH(getOutputURI(conf), conf);
         } catch (final Exception e) {
             throw new IllegalArgumentException("Unable to connect to MongoDB Output Collection.", e);
         }
@@ -573,10 +599,24 @@ public final class MongoConfigUtil {
 
     public static DBCollection getInputCollection(final Configuration conf) {
         try {
-            return getCollection(getInputURI(conf));
+            return getCollectionWithSSH(getInputURI(conf), conf);
         } catch (final Exception e) {
             throw new IllegalArgumentException(
                                                   "Unable to connect to MongoDB Input Collection at '" + getInputURI(conf) + "'", e);
+        }
+    }
+    
+    /**
+     * Get a DBCollection with SSH tunneling support
+     * @param uri the MongoDB URI
+     * @param conf the Hadoop configuration with SSH settings
+     * @return the DBCollection
+     */
+    public static DBCollection getCollectionWithSSH(final MongoClientURI uri, final Configuration conf) {
+        try {
+            return getMongoClientWithSSH(uri, conf).getDB(uri.getDatabase()).getCollection(uri.getCollection());
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Couldn't connect to collection with SSH tunnel", e);
         }
     }
 
@@ -1016,6 +1056,131 @@ public final class MongoConfigUtil {
         return conf.getBoolean(INPUT_NOTIMEOUT, false);
     }
 
+    // SSH Configuration Helper Methods
+    
+    public static boolean isSSHEnabled(final Configuration conf) {
+        return conf.getBoolean(SSH_ENABLED, false);
+    }
+    
+    public static void setSSHEnabled(final Configuration conf, final boolean enabled) {
+        conf.setBoolean(SSH_ENABLED, enabled);
+    }
+    
+    public static String getSSHHost(final Configuration conf) {
+        return conf.get(SSH_HOST);
+    }
+    
+    public static void setSSHHost(final Configuration conf, final String host) {
+        conf.set(SSH_HOST, host);
+    }
+    
+    public static int getSSHPort(final Configuration conf) {
+        return conf.getInt(SSH_PORT, 22);
+    }
+    
+    public static void setSSHPort(final Configuration conf, final int port) {
+        conf.setInt(SSH_PORT, port);
+    }
+    
+    public static String getSSHUser(final Configuration conf) {
+        return conf.get(SSH_USER);
+    }
+    
+    public static void setSSHUser(final Configuration conf, final String user) {
+        conf.set(SSH_USER, user);
+    }
+    
+    public static String getSSHPassword(final Configuration conf) {
+        return conf.get(SSH_PASSWORD);
+    }
+    
+    public static void setSSHPassword(final Configuration conf, final String password) {
+        conf.set(SSH_PASSWORD, password);
+    }
+    
+    public static String getSSHPrivateKeyPath(final Configuration conf) {
+        return conf.get(SSH_PRIVATE_KEY_PATH);
+    }
+    
+    public static void setSSHPrivateKeyPath(final Configuration conf, final String path) {
+        conf.set(SSH_PRIVATE_KEY_PATH, path);
+    }
+    
+    public static String getSSHPrivateKeyPassphrase(final Configuration conf) {
+        return conf.get(SSH_PRIVATE_KEY_PASSPHRASE);
+    }
+    
+    public static void setSSHPrivateKeyPassphrase(final Configuration conf, final String passphrase) {
+        conf.set(SSH_PRIVATE_KEY_PASSPHRASE, passphrase);
+    }
+    
+    public static boolean isSSHStrictHostKeyChecking(final Configuration conf) {
+        return conf.getBoolean(SSH_STRICT_HOST_KEY_CHECKING, false);
+    }
+    
+    public static void setSSHStrictHostKeyChecking(final Configuration conf, final boolean strictChecking) {
+        conf.setBoolean(SSH_STRICT_HOST_KEY_CHECKING, strictChecking);
+    }
+    
+    public static String getSSHKnownHostsPath(final Configuration conf) {
+        return conf.get(SSH_KNOWN_HOSTS_PATH);
+    }
+    
+    public static void setSSHKnownHostsPath(final Configuration conf, final String path) {
+        conf.set(SSH_KNOWN_HOSTS_PATH, path);
+    }
+    
+    public static boolean isSSHUseDefaultKeys(final Configuration conf) {
+        return conf.getBoolean(SSH_USE_DEFAULT_KEYS, true);
+    }
+    
+    public static void setSSHUseDefaultKeys(final Configuration conf, final boolean useDefaultKeys) {
+        conf.setBoolean(SSH_USE_DEFAULT_KEYS, useDefaultKeys);
+    }
+    
+    /**
+     * Creates an SSH configuration object from Hadoop configuration.
+     * 
+     * <p>This supports the public key authentication model where:
+     * <ul>
+     *   <li>Your Hadoop cluster's public key is stored on the customer's bastion host</li>
+     *   <li>The corresponding private key is on your Hadoop cluster nodes</li>
+     * </ul>
+     * 
+     * <p>If no explicit private key path is specified, the system will automatically
+     * search for keys in the standard ~/.ssh/ directory (id_rsa, id_ed25519, etc.)
+     */
+    public static SSHTunnelManager.SSHConfig getSSHConfig(final Configuration conf) {
+        if (!isSSHEnabled(conf)) {
+            return null;
+        }
+        
+        String sshHost = getSSHHost(conf);
+        if (sshHost == null || sshHost.isEmpty()) {
+            LOG.warn("SSH enabled but no SSH host (bastion) specified");
+            return null;
+        }
+        
+        String sshUser = getSSHUser(conf);
+        if (sshUser == null || sshUser.isEmpty()) {
+            // Try to get current system user as default
+            sshUser = System.getProperty("user.name");
+            LOG.info("No SSH user specified, using system user: " + sshUser);
+        }
+        
+        return new SSHTunnelManager.SSHConfig(
+            sshHost,
+            getSSHPort(conf),
+            sshUser,
+            getSSHPassword(conf),
+            getSSHPrivateKeyPath(conf),
+            getSSHPrivateKeyPassphrase(conf),
+            isSSHStrictHostKeyChecking(conf),
+            getSSHKnownHostsPath(conf),
+            isSSHUseDefaultKeys(conf)
+        );
+    }
+
     //BSON-specific config functions.
     public static boolean getBSONReadSplits(final Configuration conf) {
         return conf.getBoolean(BSON_READ_SPLITS, true);
@@ -1177,6 +1342,42 @@ public final class MongoConfigUtil {
             URI_MAP.get().put(mongoClient, uri);
         }
         return mongoClient;
+    }
+
+    /**
+     * Gets a MongoDB client with optional SSH tunneling support
+     * @param uri the MongoDB URI
+     * @param conf the Hadoop configuration containing SSH settings
+     * @return MongoClient instance
+     * @throws UnknownHostException if host cannot be resolved
+     */
+    private static MongoClient getMongoClientWithSSH(final MongoClientURI uri, final Configuration conf) 
+            throws UnknownHostException {
+        SSHTunnelManager.SSHConfig sshConfig = getSSHConfig(conf);
+        
+        if (sshConfig == null || !isSSHEnabled(conf)) {
+            // No SSH configuration, use regular connection
+            return getMongoClient(uri);
+        }
+        
+        try {
+            // Create SSH tunnel and get modified URI
+            LOG.info("Creating SSH tunnel for MongoDB connection");
+            MongoClientURI tunneledUri = SSHTunnelManager.createTunnel(uri, sshConfig);
+            
+            // Check if we already have a client for this tunneled URI
+            MongoClient mongoClient = CLIENTS.get().get(tunneledUri);
+            if (mongoClient == null) {
+                mongoClient = new MongoClient(tunneledUri);
+                CLIENTS.get().put(tunneledUri, mongoClient);
+                URI_MAP.get().put(mongoClient, tunneledUri);
+            }
+            
+            return mongoClient;
+        } catch (JSchException e) {
+            LOG.error("Failed to create SSH tunnel for MongoDB connection", e);
+            throw new RuntimeException("SSH tunnel creation failed: " + e.getMessage(), e);
+        }
     }
 
     /**
