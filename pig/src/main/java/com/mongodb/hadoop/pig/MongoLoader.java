@@ -132,6 +132,50 @@ public class MongoLoader extends LoadFunc
         } catch (Throwable e) {
         	throw new IllegalArgumentException("Could not set query.", e);
         }
+        
+        // Pass SSH configuration from UDF properties to job configuration
+        Properties props = getUDFProperties();
+        if (props.containsKey(MongoConfigUtil.SSH_ENABLED)) {
+            MongoConfigUtil.setSSHEnabled(conf, Boolean.parseBoolean(props.getProperty(MongoConfigUtil.SSH_ENABLED)));
+            
+            // Copy SSH settings if enabled
+            if (MongoConfigUtil.isSSHEnabled(conf)) {
+                String sshHost = props.getProperty(MongoConfigUtil.SSH_HOST);
+                if (sshHost != null) {
+                    MongoConfigUtil.setSSHHost(conf, sshHost);
+                }
+                
+                String sshUser = props.getProperty(MongoConfigUtil.SSH_USER);
+                if (sshUser != null) {
+                    MongoConfigUtil.setSSHUser(conf, sshUser);
+                }
+                
+                String sshPassword = props.getProperty(MongoConfigUtil.SSH_PASSWORD);
+                if (sshPassword != null) {
+                    MongoConfigUtil.setSSHPassword(conf, sshPassword);
+                }
+                
+                String sshPrivateKey = props.getProperty(MongoConfigUtil.SSH_PRIVATE_KEY_PATH);
+                if (sshPrivateKey != null) {
+                    MongoConfigUtil.setSSHPrivateKeyPath(conf, sshPrivateKey);
+                }
+                
+                String sshPassphrase = props.getProperty(MongoConfigUtil.SSH_PRIVATE_KEY_PASSPHRASE);
+                if (sshPassphrase != null) {
+                    MongoConfigUtil.setSSHPrivateKeyPassphrase(conf, sshPassphrase);
+                }
+                
+                String sshPort = props.getProperty(MongoConfigUtil.SSH_PORT);
+                if (sshPort != null) {
+                    MongoConfigUtil.setSSHPort(conf, Integer.parseInt(sshPort));
+                }
+                
+                String strictHostKey = props.getProperty(MongoConfigUtil.SSH_STRICT_HOST_KEY_CHECKING);
+                if (strictHostKey != null) {
+                    MongoConfigUtil.setSSHStrictHostKeyChecking(conf, Boolean.parseBoolean(strictHostKey));
+                }
+            }
+        }
     }
 
     @Override
